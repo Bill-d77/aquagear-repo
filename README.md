@@ -15,6 +15,4 @@ Setup
 4. npm run seed
 5. npm run dev
 
-Sign in
-- admin@aquagear4.com
-- password, admin123
+
