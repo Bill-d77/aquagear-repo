@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 export const authConfig: NextAuthConfig = {
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
   session: { strategy: "jwt" },
   providers: [
     Credentials({
