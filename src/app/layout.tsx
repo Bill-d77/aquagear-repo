@@ -22,7 +22,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 {isAuthed && <Link href="/cart" className="hover:text-sky-700">Cart</Link>}
                 <Link href="/account" className="hover:text-sky-700">{isAuthed ? "Account" : "Sign in"}</Link>
                 {isAdmin && (
-                  <Link href="/admin" className="text-white bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded-lg">Admin</Link>
+                  <Link href="/admin" className="text-white bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded-lg">Dashboard</Link>
                 )}
               </div>
             </nav>

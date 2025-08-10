@@ -8,11 +8,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "www.tobitengineers.com",
-      },
-      {
-        protocol: "https",
-        hostname: "tobitengineers.com",
+        hostname: "utfs.io",
       },
     ],
   },
