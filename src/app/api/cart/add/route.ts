@@ -15,25 +15,32 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const productId = String(form.get("productId"));
   const quantity = Number(form.get("quantity") ?? 1);
-  let cartId = cookies().get("cartId")?.value;
 
-  if (!cartId) {
-    const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
-    cartId = order.id;
-    const res = NextResponse.redirect(new URL("/cart", req.url));
-    res.cookies.set("cartId", order.id, { httpOnly: false, path: "/" });
-    const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    await prisma.orderItem.create({
-      data: { orderId: cartId, productId, quantity, price: product.price }
-    });
-    return res;
-  }
-
+  // Ensure product exists first
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  let cartId = cookies().get("cartId")?.value;
+  let res: NextResponse | null = null;
+
+  if (cartId) {
+    const existing = await prisma.order.findUnique({ where: { id: cartId } });
+    if (!existing) {
+      const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
+      cartId = order.id;
+      res = NextResponse.redirect(new URL("/cart", req.url));
+      res.cookies.set("cartId", order.id, { httpOnly: false, path: "/" });
+    }
+  } else {
+    const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
+    cartId = order.id;
+    res = NextResponse.redirect(new URL("/cart", req.url));
+    res.cookies.set("cartId", order.id, { httpOnly: false, path: "/" });
+  }
+
   await prisma.orderItem.create({
-    data: { orderId: cartId, productId, quantity, price: product.price }
+    data: { orderId: cartId!, productId, quantity, price: product.price }
   });
-  return NextResponse.redirect(new URL("/cart", req.url));
+
+  return res ?? NextResponse.redirect(new URL("/cart", req.url));
 }
