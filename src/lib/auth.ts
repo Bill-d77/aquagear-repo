@@ -4,8 +4,13 @@ import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
+const resolvedSecret =
+  process.env.AUTH_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  (process.env.NODE_ENV === "development" ? "dev-secret-change-me" : undefined);
+
 export const authConfig: NextAuthConfig = {
-  secret: process.env.AUTH_SECRET,
+  secret: resolvedSecret,
   trustHost: true,
   session: { strategy: "jwt" },
   providers: [
