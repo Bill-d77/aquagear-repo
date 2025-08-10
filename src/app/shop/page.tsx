@@ -27,7 +27,7 @@ export default async function Shop() {
               <button className="btn-outline w-full">Add to cart</button>
             </form>
             <a
-              href={`https://wa.me/96171634376?text=${encodeURIComponent(`Hello, I'm interested in ${p.name} (${p.slug}).`)}`}
+              href={`https://wa.me/96171634379?text=${encodeURIComponent(`Hello, I'm interested in ${p.name} (${p.slug}).`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary w-full mt-2 inline-flex justify-center"
