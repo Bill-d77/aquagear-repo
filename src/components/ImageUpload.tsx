@@ -1,12 +1,14 @@
 "use client";
-import { UploadButton } from "@uploadthing/react";
+import { generateUploadButton } from "@uploadthing/react";
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
+
+export const UploadButton = generateUploadButton<OurFileRouter>();
 
 type UploadResult = Array<{ url: string } | undefined> | undefined;
 
 export function ImageUpload({ onUrl }: { onUrl: (url: string) => void }) {
   return (
-    <UploadButton<OurFileRouter>
+    <UploadButton
       endpoint="productImage"
       onClientUploadComplete={(res: UploadResult) => {
         const url = res?.[0]?.url;
@@ -20,4 +22,4 @@ export function ImageUpload({ onUrl }: { onUrl: (url: string) => void }) {
       }}
     />
   );
-} 
+}

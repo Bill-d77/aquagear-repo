@@ -6,11 +6,7 @@ import { auth } from "@/lib/auth";
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user) {
-    const url = new URL("/account", req.url);
-    url.searchParams.set("redirect", new URL(req.url).searchParams.get("redirect") ?? "/shop");
-    return NextResponse.redirect(url);
-  }
+  // Removed auth check to allow guest checkout
 
   const form = await req.formData();
   const productId = String(form.get("productId"));

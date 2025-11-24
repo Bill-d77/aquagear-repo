@@ -14,7 +14,7 @@ export default async function CartPage() {
   const whatsappMessage = encodeURIComponent(
     `Hello, I'd like to order:\n` +
     items.map((i: any) => `- ${i.product.name} x ${i.quantity}`).join("\n") +
-    (items.length ? `\nTotal: ${(total/100).toFixed(2)} USD` : "")
+    (items.length ? `\nTotal: ${(total / 100).toFixed(2)} USD` : "")
   );
   const whatsappLink = `https://wa.me/96171634379?text=${whatsappMessage}`;
 
@@ -31,7 +31,7 @@ export default async function CartPage() {
                 </div>
                 <div>
                   <div className="font-medium">{i.product.name}</div>
-                  <div className="text-sm text-gray-600">{i.quantity} x {(i.price/100).toFixed(2)} USD</div>
+                  <div className="text-sm text-gray-600">{i.quantity} x {(i.price / 100).toFixed(2)} USD</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -52,9 +52,9 @@ export default async function CartPage() {
           ))}
           <div className="flex items-center justify-between border-t pt-3">
             <div className="font-semibold">Total</div>
-            <div>{(total/100).toFixed(2)} USD</div>
+            <div>{(total / 100).toFixed(2)} USD</div>
           </div>
-          <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="btn-primary inline-block">Checkout via WhatsApp</a>
+          <Link href="/checkout" className="btn-primary inline-block">Proceed to Checkout</Link>
         </div>
       )}
     </div>
