@@ -9,6 +9,8 @@ const resolvedSecret =
   process.env.NEXTAUTH_SECRET ||
   (process.env.NODE_ENV === "development" ? "dev-secret-change-me" : undefined);
 
+console.log("Auth Secret present:", !!resolvedSecret);
+
 export const authConfig: NextAuthConfig = {
   secret: resolvedSecret,
   trustHost: true,

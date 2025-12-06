@@ -1,4 +1,5 @@
 export const FALLBACK_IMAGE_URL = "https://images.unsplash.com/photo-1560343076-ec340740dfce?q=80&w=1200&auto=format&fit=crop";
+const BROKEN_IMAGE_URL = "https://images.unsplash.com/photo-1520971383572-9d5d42baacb6?q=80&w=1200&auto=format&fit=crop";
 
 const ALLOWED_HOSTNAMES = new Set<string>([
   "images.unsplash.com",
@@ -6,7 +7,7 @@ const ALLOWED_HOSTNAMES = new Set<string>([
 
 export function ensureValidImageUrl(input: unknown): string {
   const value = typeof input === "string" ? input.trim() : "";
-  if (!value) return FALLBACK_IMAGE_URL;
+  if (!value || value === BROKEN_IMAGE_URL) return FALLBACK_IMAGE_URL;
 
   // Allow app-hosted static paths
   if (value.startsWith("/")) return value;
@@ -27,4 +28,4 @@ export function ensureValidImageUrl(input: unknown): string {
     }
   }
   return FALLBACK_IMAGE_URL;
-} 
+}
