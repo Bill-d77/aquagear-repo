@@ -8,6 +8,9 @@ export async function POST(req: Request) {
   const session = await auth();
   // Removed auth check to allow guest checkout
 
+  const url = new URL(req.url);
+  const redirectUrl = url.searchParams.get("redirect") || "/cart";
+
   const form = await req.formData();
   const productId = String(form.get("productId"));
   const quantity = Number(form.get("quantity") ?? 1);
@@ -24,13 +27,13 @@ export async function POST(req: Request) {
     if (!existing) {
       const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
       cartId = order.id;
-      res = NextResponse.redirect(new URL("/cart", req.url));
+      res = NextResponse.redirect(new URL(redirectUrl, req.url));
       res.cookies.set("cartId", order.id, { httpOnly: false, path: "/" });
     }
   } else {
     const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
     cartId = order.id;
-    res = NextResponse.redirect(new URL("/cart", req.url));
+    res = NextResponse.redirect(new URL(redirectUrl, req.url));
     res.cookies.set("cartId", order.id, { httpOnly: false, path: "/" });
   }
 
@@ -38,5 +41,5 @@ export async function POST(req: Request) {
     data: { orderId: cartId!, productId, quantity, price: product.price }
   });
 
-  return res ?? NextResponse.redirect(new URL("/cart", req.url));
+  return res ?? NextResponse.redirect(new URL(redirectUrl, req.url));
 }
