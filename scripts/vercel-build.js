@@ -21,8 +21,8 @@ if (!process.env.DATABASE_URL) {
 // 1. Switch to Production Database Schema (PostgreSQL)
 runCommand('node scripts/switch-db.js prod');
 
-// 2. Deploy Migrations
-runCommand('npx prisma migrate deploy');
+// 2. Deploy Migrations (using db push to avoid provider mismatch)
+runCommand('npx prisma db push');
 
 // 3. Generate Prisma Client
 runCommand('npx prisma generate');
