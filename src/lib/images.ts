@@ -1,4 +1,4 @@
-export const FALLBACK_IMAGE_URL = "https://images.unsplash.com/photo-1520971383572-9d5d42baacb6?q=80&w=1200&auto=format&fit=crop";
+export const FALLBACK_IMAGE_URL = "https://images.unsplash.com/photo-1560343076-ec340740dfce?q=80&w=1200&auto=format&fit=crop";
 
 const ALLOWED_HOSTNAMES = new Set<string>([
   "images.unsplash.com",
