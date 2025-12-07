@@ -3,6 +3,7 @@ const BROKEN_IMAGE_URL = "https://images.unsplash.com/photo-1520971383572-9d5d42
 
 const ALLOWED_HOSTNAMES = new Set<string>([
   "images.unsplash.com",
+  "utfs.io",
 ]);
 
 export function ensureValidImageUrl(input: unknown): string {
