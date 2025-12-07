@@ -40,16 +40,33 @@ export async function submitOrder(prevState: any, formData: FormData) {
   const { name, location, phoneNumber, apartment, paymentMode } = validatedFields.data;
 
   try {
-    await prisma.order.update({
-      where: { id: cartId },
-      data: {
-        name,
-        location,
-        phoneNumber,
-        apartment,
-        paymentMode,
-        status: "PLACED",
-      },
+    await prisma.$transaction(async (tx) => {
+      // 1. Update order details
+      await tx.order.update({
+        where: { id: cartId },
+        data: {
+          name,
+          location,
+          phoneNumber,
+          apartment,
+          paymentMode,
+          status: "PLACED",
+        },
+      });
+
+      // 2. Get items to decrement stock
+      const orderItems = await tx.orderItem.findMany({
+        where: { orderId: cartId },
+        select: { productId: true, quantity: true }
+      });
+
+      // 3. Decrement stock
+      for (const item of orderItems) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } }
+        });
+      }
     });
 
     // Clear cart cookie

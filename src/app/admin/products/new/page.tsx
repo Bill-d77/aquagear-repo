@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 
 export default async function NewProductPage() {
   const session = await auth();
@@ -15,10 +16,8 @@ export default async function NewProductPage() {
       <textarea name="description" placeholder="Description" className="border rounded w-full p-2" required></textarea>
       <input name="price" type="number" placeholder="Price in cents" className="border rounded w-full p-2" required />
       <div>
-        <input id="imageUrl" name="imageUrl" placeholder="Image URL (https://... or /path.jpg)" className="border rounded w-full p-2" required />
-        <p className="text-xs text-gray-500 mt-1">Upload or paste an image URL. Uploaded images will auto-fill the field.</p>
-        {/* Upload button mounts on client */}
-        <ImageUploader />
+        <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
+        <ProductImageUpload name="imageUrl" />
       </div>
       <input name="stock" type="number" placeholder="Stock" className="border rounded w-full p-2" required />
       <select name="categoryId" className="border rounded w-full p-2" required>
@@ -31,21 +30,4 @@ export default async function NewProductPage() {
   );
 }
 
-function ImageUploader() {
-  // This component becomes client-only at runtime via dynamic import boundary in Next
-  return (
-    <div className="mt-2">
-      {/* Simple fallback: link to upload route; recommend wiring @uploadthing/react for rich UI */}
-      <a href="/api/uploadthing" target="_blank" className="btn-outline inline-block">Open uploader</a>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            (function(){
-              // If using UploadThing widget, you would mount it here and set #imageUrl when complete.
-            })();
-          `,
-        }}
-      />
-    </div>
-  );
-}
+
