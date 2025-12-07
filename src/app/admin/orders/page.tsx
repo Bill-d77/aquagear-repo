@@ -101,7 +101,7 @@ export default async function AdminOrders() {
                   ))}
                   <div className="p-3 bg-gray-50 flex justify-between font-bold text-gray-900">
                     <span>Total</span>
-                    <span>${(o.total / 100).toFixed(2)}</span>
+                    <span>${(o.items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0) / 100).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
