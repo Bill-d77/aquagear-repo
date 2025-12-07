@@ -27,7 +27,7 @@ export default async function CartPage() {
             <div key={i.id} className="flex items-center justify-between card">
               <div className="flex items-center gap-4">
                 <div className="overflow-hidden rounded-xl">
-                  <Image src={i.product.imageUrl} className="w-16 h-16 object-cover" alt={i.product.name} width={64} height={64} />
+                  <Image src={i.product.imageUrl} className="w-16 h-16 object-contain bg-white rounded-md" alt={i.product.name} width={64} height={64} />
                 </div>
                 <div>
                   <div className="font-medium">{i.product.name}</div>

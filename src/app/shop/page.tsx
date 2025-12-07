@@ -17,7 +17,7 @@ export default async function Shop() {
           <div key={p.id} className="card group">
             <Link href={`/product/${p.slug}`} className="block">
               <div className="overflow-hidden rounded-xl">
-                <Image src={ensureValidImageUrl(p.imageUrl)} alt={p.name} width={600} height={400} className="w-full h-40 object-cover group-hover:scale-105 transition" />
+                <Image src={ensureValidImageUrl(p.imageUrl)} alt={p.name} width={600} height={400} className="w-full h-40 object-contain bg-white p-2 group-hover:scale-105 transition" />
               </div>
               <div className="mt-3 font-medium">{p.name}</div>
               <div className="text-sm text-gray-600">{(p.price / 100).toFixed(2)} USD</div>

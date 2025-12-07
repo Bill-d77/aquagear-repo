@@ -14,7 +14,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
   return (
     <div className="grid md:grid-cols-2 gap-10">
       <div className="card overflow-hidden">
-        <Image src={ensureValidImageUrl(product.imageUrl)} alt={product.name} width={800} height={600} className="w-full h-80 object-cover" />
+        <Image src={ensureValidImageUrl(product.imageUrl)} alt={product.name} width={800} height={600} className="w-full h-80 object-contain bg-white" />
       </div>
       <div className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
