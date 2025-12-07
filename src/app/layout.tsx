@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { Providers } from "./providers";
 import { auth } from "@/lib/auth";
+import { Toaster } from "sonner";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </div>
             <div className="mx-auto max-w-7xl px-6 pb-8 text-xs text-gray-500">© {new Date().getFullYear()} AquaGear4</div>
           </footer>
+          <Toaster position="bottom-right" />
         </Providers>
       </body>
     </html>

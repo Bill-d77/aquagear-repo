@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ensureValidImageUrl } from "@/lib/images";
 import { auth } from "@/lib/auth";
+import { AddToCartButton } from "@/components/cart/AddToCartButton";
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const product = await prisma.product.findUnique({ where: { slug: params.slug } });
@@ -17,14 +18,16 @@ export default async function ProductPage({ params }: { params: { slug: string }
       </div>
       <div className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
-        <div className="text-xl">{(product.price/100).toFixed(2)} USD</div>
+        <div className="text-xl">{(product.price / 100).toFixed(2)} USD</div>
         <p className="text-gray-700">{product.description}</p>
-        <form action={`/api/cart/add?redirect=/product/${product.slug}`} method="post" className="flex items-center gap-3">
-          <input type="hidden" name="productId" value={product.id} />
-          <input type="number" name="quantity" min="1" defaultValue="1" className="border rounded px-3 py-2 w-24" />
-          <button className="btn-primary" type="submit">Add to cart</button>
-          {isAuthed && <Link href="/cart" className="btn-outline">Go to cart</Link>}
-        </form>
+
+        <div className="flex items-center gap-3">
+          <div className="w-40">
+            <AddToCartButton productId={product.id} />
+          </div>
+          {isAuthed && <Link href="/cart" className="btn-outline h-12 px-6 flex items-center">Go to cart</Link>}
+        </div>
+
         <a
           href={`https://wa.me/96171634379?text=${encodeURIComponent(`Hello, I'm interested in ${product.name} (${product.slug}).`)}`}
           target="_blank"
