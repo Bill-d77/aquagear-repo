@@ -53,7 +53,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </div>
             <div className="mx-auto max-w-7xl px-6 pb-8 text-xs text-gray-500">© {new Date().getFullYear()} AquaGear4</div>
           </footer>
-          <Toaster position="bottom-right" />
+          <Toaster position="bottom-right" richColors />
         </Providers>
       </body>
     </html>
