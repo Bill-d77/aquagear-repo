@@ -7,9 +7,10 @@ import { ShoppingCart, Loader2, Check } from "lucide-react";
 
 interface AddToCartButtonProps {
     productId: string;
+    quantity?: number;
 }
 
-export function AddToCartButton({ productId }: AddToCartButtonProps) {
+export function AddToCartButton({ productId, quantity = 1 }: AddToCartButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -18,7 +19,7 @@ export function AddToCartButton({ productId }: AddToCartButtonProps) {
         try {
             const formData = new FormData();
             formData.append("productId", productId);
-            formData.append("quantity", "1");
+            formData.append("quantity", quantity.toString());
 
             const res = await fetch("/api/cart/add", {
                 method: "POST",

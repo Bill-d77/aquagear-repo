@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
 import { ensureValidImageUrl } from "@/lib/images";
+import { AddToCartButton } from "@/components/cart/AddToCartButton";
 
 export default async function Shop() {
   const products = await prisma.product.findMany({
@@ -19,13 +20,11 @@ export default async function Shop() {
                 <Image src={ensureValidImageUrl(p.imageUrl)} alt={p.name} width={600} height={400} className="w-full h-40 object-cover group-hover:scale-105 transition" />
               </div>
               <div className="mt-3 font-medium">{p.name}</div>
-              <div className="text-sm text-gray-600">{(p.price/100).toFixed(2)} USD</div>
+              <div className="text-sm text-gray-600">{(p.price / 100).toFixed(2)} USD</div>
             </Link>
-            <form action={`/api/cart/add?redirect=/shop`} method="post" className="mt-3">
-              <input type="hidden" name="productId" value={p.id} />
-              <input type="hidden" name="quantity" value="1" />
-              <button className="btn-outline w-full">Add to cart</button>
-            </form>
+            <div className="mt-3">
+              <AddToCartButton productId={p.id} />
+            </div>
             <a
               href={`https://wa.me/96171634379?text=${encodeURIComponent(`Hello, I'm interested in ${p.name} (${p.slug}).`)}`}
               target="_blank"

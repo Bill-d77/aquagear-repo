@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ensureValidImageUrl } from "@/lib/images";
 import { auth } from "@/lib/auth";
-import { AddToCartButton } from "@/components/cart/AddToCartButton";
+import { ProductQuantitySelector } from "@/components/cart/ProductQuantitySelector";
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const product = await prisma.product.findUnique({ where: { slug: params.slug } });
@@ -22,9 +22,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         <p className="text-gray-700">{product.description}</p>
 
         <div className="flex items-center gap-3">
-          <div className="w-40">
-            <AddToCartButton productId={product.id} />
-          </div>
+          <ProductQuantitySelector productId={product.id} />
           {isAuthed && <Link href="/cart" className="btn-outline h-12 px-6 flex items-center">Go to cart</Link>}
         </div>
 
