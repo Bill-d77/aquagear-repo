@@ -24,10 +24,13 @@ runCommand('node scripts/switch-db.js prod');
 // 2. Deploy Migrations (using db push to avoid provider mismatch)
 runCommand('npx prisma db push');
 
-// 3. Generate Prisma Client
+// 3. Seed Database
+runCommand('npm run seed');
+
+// 4. Generate Prisma Client
 runCommand('npx prisma generate');
 
-// 4. Build Next.js App
+// 5. Build Next.js App
 runCommand('next build');
 
 console.log('Vercel build completed successfully.');
