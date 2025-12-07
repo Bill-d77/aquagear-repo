@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { Providers } from "./providers";
 import { auth } from "@/lib/auth";
 import { Toaster } from "sonner";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <div className="mx-auto max-w-7xl px-6 pb-8 text-xs text-gray-500">© {new Date().getFullYear()} AquaGear4</div>
           </footer>
           <Toaster position="bottom-right" richColors />
+          <WhatsAppButton />
         </Providers>
       </body>
     </html>
