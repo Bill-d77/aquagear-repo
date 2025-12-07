@@ -20,16 +20,34 @@ export const authConfig: NextAuthConfig = {
       name: "Credentials",
       credentials: { email: {}, password: {} },
       async authorize(credentials) {
+        console.log("Authorize called");
         const parsed = z
           .object({ email: z.string().email(), password: z.string().min(1) })
           .safeParse(credentials);
-        if (!parsed.success) return null;
+        if (!parsed.success) {
+          console.log("Validation failed", parsed.error);
+          return null;
+        }
         const { email, password } = parsed.data;
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) return null;
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) return null;
-        return { id: user.id, name: user.name, email: user.email, role: user.role };
+        console.log("Looking up user:", email);
+        try {
+          const user = await prisma.user.findUnique({ where: { email } });
+          if (!user) {
+            console.log("User not found");
+            return null;
+          }
+          console.log("User found, checking password");
+          const ok = await bcrypt.compare(password, user.password);
+          if (!ok) {
+            console.log("Password mismatch");
+            return null;
+          }
+          console.log("Login successful");
+          return { id: user.id, name: user.name, email: user.email, role: user.role };
+        } catch (error) {
+          console.error("Authorize error:", error);
+          return null;
+        }
       }
     })
   ],
