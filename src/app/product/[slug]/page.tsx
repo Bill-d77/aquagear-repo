@@ -8,7 +8,7 @@ import { ProductQuantitySelector } from "@/components/cart/ProductQuantitySelect
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const product = await prisma.product.findUnique({ where: { slug: params.slug } });
-  if (!product) return notFound();
+  if (!product || product.isArchived) return notFound();
   const session = await auth();
   const isAuthed = !!session?.user;
   return (

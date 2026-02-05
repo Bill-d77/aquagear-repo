@@ -11,6 +11,7 @@ export default async function AdminProducts() {
   if (role !== "ADMIN") return <p>Access denied.</p>;
 
   const products = await prisma.product.findMany({
+    where: { isArchived: false },
     orderBy: { createdAt: "desc" },
     select: { id: true, name: true, imageUrl: true, price: true, stock: true },
   });

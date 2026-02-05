@@ -25,3 +25,6 @@ coverage/
 dist/
 build/
 .vercel/ 
+# Local DB
+*.db
+*.db-journal

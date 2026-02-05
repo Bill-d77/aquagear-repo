@@ -6,6 +6,7 @@ import { AddToCartButton } from "@/components/cart/AddToCartButton";
 
 export default async function Shop() {
   const products = await prisma.product.findMany({
+    where: { isArchived: false },
     orderBy: { createdAt: "desc" },
     select: { id: true, slug: true, imageUrl: true, name: true, price: true },
   });
