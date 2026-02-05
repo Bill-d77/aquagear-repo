@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import Image from "next/image";
 import { ensureValidImageUrl } from "@/lib/images";
+import { DeleteProductButton } from "@/components/admin/DeleteProductButton";
 
 export default async function AdminProducts() {
   const session = await auth();
@@ -26,15 +27,12 @@ export default async function AdminProducts() {
               <Image src={ensureValidImageUrl(p.imageUrl)} className="w-12 h-12 object-cover rounded" alt={p.name} width={48} height={48} />
               <div>
                 <div className="font-medium">{p.name}</div>
-                <div className="text-sm text-gray-600">{(p.price/100).toFixed(2)} USD, stock {p.stock}</div>
+                <div className="text-sm text-gray-600">{(p.price / 100).toFixed(2)} USD, stock {p.stock}</div>
               </div>
             </div>
             <div className="flex gap-2">
               <Link href={`/admin/products/edit/${p.id}`} className="btn-outline">Edit</Link>
-              <form action="/api/admin/products/delete" method="post">
-                <input type="hidden" name="id" value={p.id} />
-                <button className="btn-outline">Delete</button>
-              </form>
+              <DeleteProductButton id={p.id} />
             </div>
           </div>
         ))}

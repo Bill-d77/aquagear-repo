@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
+import { DeleteProductButton } from "@/components/admin/DeleteProductButton";
 
 export default async function AdminEditProduct({ params }: { params: { id: string } }) {
   const session = await auth();
@@ -31,7 +32,10 @@ export default async function AdminEditProduct({ params }: { params: { id: strin
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}
       </select>
-      <button className="btn-primary">Save</button>
+      <div className="flex justify-between items-center">
+        <button className="btn-primary">Save</button>
+        <DeleteProductButton id={product.id} />
+      </div>
     </form>
   );
 } 
