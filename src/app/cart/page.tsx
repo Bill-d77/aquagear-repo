@@ -24,9 +24,9 @@ export default async function CartPage() {
       {items.length === 0 ? <p>Your cart is empty.</p> : (
         <div className="space-y-3">
           {items.map((i: any) => (
-            <div key={i.id} className="flex items-center justify-between card">
+            <div key={i.id} className="flex flex-col sm:flex-row sm:items-center justify-between card gap-4">
               <div className="flex items-center gap-4">
-                <div className="overflow-hidden rounded-xl">
+                <div className="overflow-hidden rounded-xl shrink-0">
                   <Image src={i.product.imageUrl} className="w-16 h-16 object-contain bg-white rounded-md" alt={i.product.name} width={64} height={64} />
                 </div>
                 <div>
@@ -34,18 +34,18 @@ export default async function CartPage() {
                   <div className="text-sm text-gray-600">{i.quantity} x {(i.price / 100).toFixed(2)} USD</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <a
                   href={`https://wa.me/96171634376?text=${encodeURIComponent(`Hello, I have a question about ${i.product.name}.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-outline"
+                  className="btn-outline flex-1 sm:flex-none text-center justify-center"
                 >
                   WhatsApp
                 </a>
-                <form action="/api/cart/remove" method="post">
+                <form action="/api/cart/remove" method="post" className="flex-1 sm:flex-none">
                   <input type="hidden" name="id" value={i.id} />
-                  <button className="btn-outline">Remove</button>
+                  <button className="btn-outline w-full">Remove</button>
                 </form>
               </div>
             </div>

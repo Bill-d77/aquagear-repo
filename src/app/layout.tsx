@@ -5,6 +5,8 @@ import { Providers } from "./providers";
 import { auth } from "@/lib/auth";
 import { Toaster } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { MobileMenu } from "@/components/layout/MobileMenu";
+import Image from "next/image";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -18,8 +20,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Providers>
           <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b">
             <nav className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-              <Link href="/" className="text-2xl font-extrabold tracking-tight">AquaGear4</Link>
-              <div className="flex items-center gap-6 text-sm font-medium">
+              <Link href="/" className="flex items-center gap-2 font-extrabold tracking-tight text-xl">
+                <Image src="/logo.png" alt="AquaGear4 Logo" width={40} height={40} className="w-10 h-10 object-contain" />
+                <span>AquaGear4</span>
+              </Link>
+              <div className="hidden md:flex items-center gap-6 text-sm font-medium">
                 <Link href="/shop" className="hover:text-sky-700">Shop</Link>
                 <Link href="/cart" className="hover:text-sky-700">Cart</Link>
                 <Link href="/account" className="hover:text-sky-700">{isAuthed ? "Account" : "Sign in"}</Link>
@@ -27,14 +32,18 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   <Link href="/admin" className="text-white bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded-lg">Dashboard</Link>
                 )}
               </div>
+              <MobileMenu isAuthed={isAuthed} isAdmin={isAdmin} />
             </nav>
           </header>
           <main className="mx-auto max-w-7xl px-6 py-10">{children}</main>
           <footer className="border-t mt-24">
             <div className="mx-auto max-w-7xl px-6 py-10 grid md:grid-cols-3 gap-6 text-sm text-gray-600">
               <div>
-                <div className="font-semibold text-gray-900">AquaGear4</div>
-                <p className="mt-2">Quality sea gear, floats, and safety equipment.</p>
+                <div className="flex items-center gap-2 font-semibold text-gray-900 mb-2">
+                  <Image src="/logo.png" alt="AquaGear4 Logo" width={32} height={32} className="w-8 h-8 object-contain" />
+                  <span>AquaGear4</span>
+                </div>
+                <p>Quality sea gear, floats, and safety equipment.</p>
               </div>
               <div>
                 <div className="font-semibold text-gray-900">Links</div>

@@ -21,16 +21,16 @@ export default async function ProductPage({ params }: { params: { slug: string }
         <div className="text-xl">{(product.price / 100).toFixed(2)} USD</div>
         <p className="text-gray-700">{product.description}</p>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
           <ProductQuantitySelector productId={product.id} />
-          {isAuthed && <Link href="/cart" className="btn-outline h-12 px-6 flex items-center">Go to cart</Link>}
+          {isAuthed && <Link href="/cart" className="btn-outline h-12 px-6 flex items-center justify-center w-full sm:w-auto">Go to cart</Link>}
         </div>
 
         <a
           href={`https://wa.me/96171634379?text=${encodeURIComponent(`Hello, I'm interested in ${product.name} (${product.slug}).`)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn-outline inline-flex justify-center"
+          className="btn-outline inline-flex justify-center w-full sm:w-auto"
         >
           WhatsApp
         </a>
