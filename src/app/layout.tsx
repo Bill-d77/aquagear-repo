@@ -7,6 +7,17 @@ import { Toaster } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { MobileMenu } from "@/components/layout/MobileMenu";
 import Image from "next/image";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "AquaGear4",
+  description: "Sea gear, floats, and safety for Lebanon",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
+};
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await auth();
