@@ -24,7 +24,11 @@ Thumbs.db
 coverage/
 dist/
 build/
-.vercel/ 
+.vercel/
+
+# TypeScript build cache
+*.tsbuildinfo
+
 # Local DB
 *.db
 *.db-journal

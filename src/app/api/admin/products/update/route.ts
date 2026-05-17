@@ -3,18 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { ensureValidImageUrl } from "@/lib/images";
-import { z } from "zod";
-
-const schema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  slug: z.string().min(1),
-  description: z.string().min(1),
-  price: z.coerce.number().int().nonnegative(),
-  imageUrl: z.string().min(1),
-  stock: z.coerce.number().int().nonnegative(),
-  categoryId: z.string().min(1),
-});
+import { productUpdateFormSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -35,7 +24,7 @@ export async function POST(req: Request) {
       stock: form.get("stock"),
       categoryId: form.get("categoryId"),
     };
-    const parsed = schema.safeParse(raw);
+    const parsed = productUpdateFormSchema.safeParse(raw);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
@@ -50,4 +39,4 @@ export async function POST(req: Request) {
   } catch (e) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-} 
+}

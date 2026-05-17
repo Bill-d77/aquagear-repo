@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { submitOrder } from "./actions";
 
 const initialState = {
@@ -9,7 +9,7 @@ const initialState = {
 };
 
 export default function Checkout() {
-  const [state, formAction] = useFormState(submitOrder, initialState);
+  const [state, formAction] = useActionState(submitOrder, initialState);
 
   return (
     <div className="max-w-2xl mx-auto">

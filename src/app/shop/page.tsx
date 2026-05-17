@@ -4,6 +4,8 @@ import Image from "next/image";
 import { ensureValidImageUrl } from "@/lib/images";
 import { AddToCartButton } from "@/components/cart/AddToCartButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function Shop() {
   const products = await prisma.product.findMany({
     where: { isArchived: false },

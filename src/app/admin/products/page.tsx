@@ -5,6 +5,8 @@ import Image from "next/image";
 import { ensureValidImageUrl } from "@/lib/images";
 import { DeleteProductButton } from "@/components/admin/DeleteProductButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminProducts() {
   const session = await auth();
   const role = (session?.user as any)?.role;

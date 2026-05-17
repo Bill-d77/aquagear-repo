@@ -3,11 +3,19 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const pass = await bcrypt.hash("admin123", 10);
+  const adminEmail = process.env.SEED_ADMIN_EMAIL;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const adminName = process.env.SEED_ADMIN_NAME || "Admin";
+
+  if (!adminEmail || !adminPassword) {
+    throw new Error("SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be set before running seed");
+  }
+
+  const pass = await bcrypt.hash(adminPassword, 10);
   await prisma.user.upsert({
-    where: { email: "admin@aquagear4.com" },
-    update: {},
-    create: { name: "Admin", email: "admin@aquagear4.com", password: pass, role: "ADMIN" }
+    where: { email: adminEmail },
+    update: { name: adminName, role: "ADMIN" },
+    create: { name: adminName, email: adminEmail, password: pass, role: "ADMIN" }
   });
 
   const categoryNames = [

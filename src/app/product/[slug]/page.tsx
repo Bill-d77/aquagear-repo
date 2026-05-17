@@ -6,6 +6,8 @@ import { ensureValidImageUrl } from "@/lib/images";
 import { auth } from "@/lib/auth";
 import { ProductQuantitySelector } from "@/components/cart/ProductQuantitySelector";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const product = await prisma.product.findUnique({ where: { slug: params.slug } });
   if (!product || product.isArchived) return notFound();

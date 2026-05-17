@@ -2,11 +2,15 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
+import { CART_COOKIE_NAME } from "@/lib/cart";
+
+export const dynamic = "force-dynamic";
 
 export default async function CartPage() {
-  const cartId = cookies().get("cartId")?.value;
+  const cookieStore = await cookies();
+  const cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
   const items = cartId ? await prisma.orderItem.findMany({
-    where: { orderId: cartId },
+    where: { orderId: cartId, order: { status: "PENDING" } },
     include: { product: true }
   }) : [] as Array<{ id: string; product: { name: string; imageUrl: string; slug?: string }; price: number; quantity: number }>;
   const total = items.reduce((s: number, i: { price: number; quantity: number }) => s + i.price * i.quantity, 0);
@@ -36,7 +40,7 @@ export default async function CartPage() {
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <a
-                  href={`https://wa.me/96171634376?text=${encodeURIComponent(`Hello, I have a question about ${i.product.name}.`)}`}
+                  href={`https://wa.me/96171634379?text=${encodeURIComponent(`Hello, I have a question about ${i.product.name}.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-outline flex-1 sm:flex-none text-center justify-center"
@@ -54,7 +58,17 @@ export default async function CartPage() {
             <div className="font-semibold">Total</div>
             <div>{(total / 100).toFixed(2)} USD</div>
           </div>
-          <Link href="/checkout" className="btn-primary inline-block">Proceed to Checkout</Link>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link href="/checkout" className="btn-primary inline-block text-center">Proceed to Checkout</Link>
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-outline inline-block text-center"
+            >
+              Order via WhatsApp
+            </a>
+          </div>
         </div>
       )}
     </div>

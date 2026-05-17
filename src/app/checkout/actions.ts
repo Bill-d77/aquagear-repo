@@ -4,6 +4,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { CART_COOKIE_NAME } from "@/lib/cart";
+import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 
 const checkoutSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -14,7 +16,8 @@ const checkoutSchema = z.object({
 });
 
 export async function submitOrder(prevState: any, formData: FormData) {
-  const cartId = cookies().get("cartId")?.value;
+  const cookieStore = await cookies();
+  const cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
 
   if (!cartId) {
     return { message: "Cart is empty" };
@@ -41,7 +44,23 @@ export async function submitOrder(prevState: any, formData: FormData) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. Update order details
+      const order = await tx.order.findFirst({
+        where: { id: cartId, status: "PENDING" },
+        include: { items: { include: { product: true } } },
+      });
+
+      if (!order || order.items.length === 0) {
+        throw new Error("Cart is empty");
+      }
+
+      for (const item of order.items) {
+        if (item.product.isArchived || item.product.stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${item.product.name}`);
+        }
+      }
+
+      const total = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
       await tx.order.update({
         where: { id: cartId },
         data: {
@@ -50,31 +69,37 @@ export async function submitOrder(prevState: any, formData: FormData) {
           phoneNumber,
           apartment,
           paymentMode,
-          status: "PLACED",
+          status: PLACED_ORDER_STATUS,
+          total,
         },
       });
 
-      // 2. Get items to decrement stock
-      const orderItems = await tx.orderItem.findMany({
-        where: { orderId: cartId },
-        select: { productId: true, quantity: true }
-      });
-
-      // 3. Decrement stock
-      for (const item of orderItems) {
-        await tx.product.update({
-          where: { id: item.productId },
+      for (const item of order.items) {
+        const updated = await tx.product.updateMany({
+          where: {
+            id: item.productId,
+            isArchived: false,
+            stock: { gte: item.quantity },
+          },
           data: { stock: { decrement: item.quantity } }
         });
+        if (updated.count !== 1) {
+          throw new Error(`Insufficient stock for ${item.product.name}`);
+        }
       }
     });
 
-    // Clear cart cookie
-    cookies().delete("cartId");
+    cookieStore.set(CART_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
 
   } catch (e) {
     console.error(e);
-    return { message: "Failed to submit order" };
+    return { message: e instanceof Error ? e.message : "Failed to submit order" };
   }
 
   redirect("/checkout/success");

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewProductPage() {
   const session = await auth();
   const role = (session?.user as any)?.role;
@@ -29,5 +31,4 @@ export default async function NewProductPage() {
     </form>
   );
 }
-
 

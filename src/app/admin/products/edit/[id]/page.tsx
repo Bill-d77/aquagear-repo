@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import { DeleteProductButton } from "@/components/admin/DeleteProductButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminEditProduct({ params }: { params: { id: string } }) {
   const session = await auth();
   const role = (session?.user as any)?.role;
@@ -38,4 +40,4 @@ export default async function AdminEditProduct({ params }: { params: { id: strin
       </div>
     </form>
   );
-} 
+}

@@ -18,19 +18,11 @@ if (!process.env.DATABASE_URL) {
     process.exit(1);
 }
 
-// 1. Switch to Production Database Schema (PostgreSQL)
-runCommand('node scripts/switch-db.js prod');
-
-// 2. Deploy Migrations (using db push to avoid provider mismatch)
-runCommand('npx prisma db push');
-
-// 3. Seed Database
-runCommand('npm run seed');
-
-// 4. Generate Prisma Client
+// Generate Prisma Client. Schema migrations and seed scripts must be run
+// explicitly after backing up or branching the production Neon database.
 runCommand('npx prisma generate');
 
-// 5. Build Next.js App
+// Build Next.js App
 runCommand('next build');
 
 console.log('Vercel build completed successfully.');

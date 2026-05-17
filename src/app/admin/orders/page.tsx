@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { MapPin, Phone, User, CreditCard, Package } from "lucide-react";
+import { ORDER_STATUSES } from "@/lib/order-status";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminOrders() {
   const session = await auth();
@@ -25,7 +28,7 @@ export default async function AdminOrders() {
                 <div className="text-sm text-gray-500">{new Date(o.createdAt).toLocaleString()}</div>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${o.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${o.status === 'PLACED' ? 'bg-green-100 text-green-700' :
                     o.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
                       o.status === 'SHIPPED' ? 'bg-blue-100 text-blue-700' :
                         'bg-gray-100 text-gray-700'
@@ -35,10 +38,9 @@ export default async function AdminOrders() {
                 <form action="/api/admin/orders/status" method="post" className="flex items-center gap-2">
                   <input type="hidden" name="id" value={o.id} />
                   <select name="status" defaultValue={o.status} className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    <option value="PENDING">PENDING</option>
-                    <option value="PAID">PAID</option>
-                    <option value="SHIPPED">SHIPPED</option>
-                    <option value="CANCELED">CANCELED</option>
+                    {ORDER_STATUSES.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
                   </select>
                   <button className="text-sm bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded-md font-medium transition-colors">
                     Update
@@ -101,7 +103,7 @@ export default async function AdminOrders() {
                   ))}
                   <div className="p-3 bg-gray-50 flex justify-between font-bold text-gray-900">
                     <span>Total</span>
-                    <span>${(o.items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0) / 100).toFixed(2)}</span>
+                    <span>${(o.total / 100).toFixed(2)}</span>
                   </div>
                 </div>
               </div>

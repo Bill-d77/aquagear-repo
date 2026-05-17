@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { DollarSign, Package, ShoppingBag, Users } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 async function getStats() {
   const [productCount, orderCount, userCount, totalRevenue] = await Promise.all([
     prisma.product.count(),
@@ -8,7 +10,7 @@ async function getStats() {
     prisma.user.count(),
     prisma.order.aggregate({
       _sum: { total: true },
-      where: { status: { not: "PENDING" } } // Only count completed/paid orders ideally
+      where: { status: { in: ["PLACED", "SHIPPED"] } }
     })
   ]);
 

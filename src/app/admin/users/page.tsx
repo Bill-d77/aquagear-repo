@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminUsers() {
   const session = await auth();
   const role = (session?.user as any)?.role;
@@ -20,7 +22,7 @@ export default async function AdminUsers() {
             </div>
             <form action="/api/admin/users/role" method="post" className="flex items-center gap-2">
               <input type="hidden" name="id" value={u.id} />
-              <select name="role" className="border rounded px-2 py-1">
+              <select name="role" defaultValue={u.role} className="border rounded px-2 py-1">
                 <option value="USER">USER</option>
                 <option value="ADMIN">ADMIN</option>
               </select>
@@ -31,4 +33,4 @@ export default async function AdminUsers() {
       </div>
     </div>
   );
-} 
+}

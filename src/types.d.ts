@@ -1,7 +1,5 @@
-declare module 'react-dom' {
-    export function useFormState<State>(
-        action: (state: State, payload: FormData) => Promise<State>,
-        initialState: State,
-        permalink?: string
-    ): [State, (payload: FormData) => void];
-}
+// Ambient declarations for the app. (The previous useFormState shim for
+// "react-dom" was removed once checkout/page.tsx switched to useActionState
+// from "react", which is provided by @types/react's canary declarations.)
+
+export {};

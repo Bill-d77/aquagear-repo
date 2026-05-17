@@ -2,50 +2,77 @@ export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-// import { auth } from "@/lib/auth"; // Removed unused auth import
+import { cartCookieOptions, CART_COOKIE_NAME, MAX_CART_QUANTITY } from "@/lib/cart";
+
+function getSafeRedirect(req: Request) {
+  const url = new URL(req.url);
+  const redirectUrl = url.searchParams.get("redirect") || "/cart";
+  return redirectUrl.startsWith("/") && !redirectUrl.startsWith("//") ? redirectUrl : "/cart";
+}
 
 export async function POST(req: Request) {
   try {
-    // const session = await auth(); // Removed unused auth call
-
-    const url = new URL(req.url);
-    const redirectUrl = url.searchParams.get("redirect") || "/cart";
+    const redirectUrl = getSafeRedirect(req);
 
     const form = await req.formData();
-    const productId = String(form.get("productId"));
+    const productIdValue = form.get("productId");
+    const productId = typeof productIdValue === "string" ? productIdValue : "";
     const quantity = Number(form.get("quantity") ?? 1);
+    if (!productId || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_CART_QUANTITY) {
+      return NextResponse.json({ error: "Invalid quantity" }, { status: 400 });
+    }
 
-    // Ensure product exists first
     const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!product || product.isArchived) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (product.stock < quantity) {
+      return NextResponse.json({ error: "Insufficient stock" }, { status: 400 });
+    }
 
-    let cartId = cookies().get("cartId")?.value;
+    const cookieStore = await cookies();
+    let cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
     let res: NextResponse | null = null;
 
     if (cartId) {
-      const existing = await prisma.order.findUnique({ where: { id: cartId } });
+      const existing = await prisma.order.findFirst({ where: { id: cartId, status: "PENDING" } });
       if (!existing) {
         const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
         cartId = order.id;
         res = NextResponse.redirect(new URL(redirectUrl, req.url));
-        res.cookies.set("cartId", order.id, { httpOnly: false, path: "/" });
+        res.cookies.set(CART_COOKIE_NAME, order.id, cartCookieOptions);
       }
     } else {
       const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
       cartId = order.id;
       res = NextResponse.redirect(new URL(redirectUrl, req.url));
-      res.cookies.set("cartId", order.id, { httpOnly: false, path: "/" });
+      res.cookies.set(CART_COOKIE_NAME, order.id, cartCookieOptions);
     }
 
-    await prisma.orderItem.create({
-      data: { orderId: cartId!, productId, quantity, price: product.price }
+    const existingItem = await prisma.orderItem.findFirst({
+      where: { orderId: cartId!, productId },
     });
+
+    if (existingItem) {
+      const nextQuantity = existingItem.quantity + quantity;
+      if (nextQuantity > MAX_CART_QUANTITY || nextQuantity > product.stock) {
+        return NextResponse.json({ error: "Insufficient stock" }, { status: 400 });
+      }
+      await prisma.orderItem.update({
+        where: { id: existingItem.id },
+        data: { quantity: nextQuantity, price: product.price },
+      });
+    } else {
+      await prisma.orderItem.create({
+        data: { orderId: cartId!, productId, quantity, price: product.price }
+      });
+    }
 
     return res ?? NextResponse.redirect(new URL(redirectUrl, req.url));
   } catch (error) {
     console.error("Error in /api/cart/add:", error);
     return NextResponse.json(
-      { error: "Internal Server Error", details: error instanceof Error ? error.message : String(error) },
+      { error: "Internal Server Error" },
       { status: 500 }
     );
   }
