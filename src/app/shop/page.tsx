@@ -76,7 +76,7 @@ export default async function Shop({
               `Hello, I'm interested in ${p.name} (${p.slug}).`
             )}`;
             return (
-              <div key={p.id} className="product-card">
+              <div key={p.id} className="product-card group">
                 {/* WhatsApp icon — top right overlay */}
                 <a
                   href={waLink}
