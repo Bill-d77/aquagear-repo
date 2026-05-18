@@ -42,18 +42,35 @@ model Category {
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  user        User?       @relation(fields: [userId], references: [id])
-  userId      String?
-  items       OrderItem[]
-  total       Int
-  status      String      @default("PENDING")
-  name        String?
-  location    String?
-  phoneNumber String?
-  apartment   String?
-  paymentMode String      @default("COD")
-  createdAt   DateTime    @default(now())
+  id               String      @id @default(cuid())
+  user             User?       @relation(fields: [userId], references: [id])
+  userId           String?
+  items            OrderItem[]
+  total            Int
+  status           String      @default("PENDING")
+  name             String?
+  location         String?
+  phoneNumber      String?
+  apartment        String?
+  paymentMode      String      @default("COD")
+  createdAt        DateTime    @default(now())
+  // Fulfillment metadata (admin phase 2)
+  notes            String?
+  placedAt         DateTime?
+  shippedAt        DateTime?
+  canceledAt       DateTime?
+  trackingNumber   String?
+  carrier          String?
+  lastContactedAt  DateTime?
+}
+
+model StoreSettings {
+  id               String   @id @default("singleton")
+  storeName        String   @default("AquaGear")
+  whatsappNumber   String   @default("96171634379")
+  shippingFlatRate Int      @default(0) // cents
+  businessHours    String   @default("Mon-Sat 9:00-18:00")
+  updatedAt        DateTime @updatedAt
 }
 
 model OrderItem {

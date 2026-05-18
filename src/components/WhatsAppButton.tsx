@@ -2,10 +2,14 @@
 
 import { motion } from "framer-motion";
 
-export function WhatsAppButton() {
+interface WhatsAppButtonProps {
+    number: string;
+}
+
+export function WhatsAppButton({ number }: WhatsAppButtonProps) {
     return (
         <motion.a
-            href="https://wa.me/96171634379"
+            href={`https://wa.me/${number}`}
             target="_blank"
             rel="noopener noreferrer"
             className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 bg-[#25D366] rounded-full shadow-lg hover:bg-[#20bd5a] transition-colors"

@@ -1,17 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import { DeleteProductButton } from "@/components/admin/DeleteProductButton";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminEditProduct({ params }: { params: { id: string } }) {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN") return <p>Access denied.</p>;
-
-  const product = await prisma.product.findUnique({ where: { id: params.id } });
+export default async function AdminEditProduct({ params }: { params: Promise<{ id: string }> }) {
+  // Auth handled by /admin layout via requireAdmin()
+  const { id } = await params;
+  const product = await prisma.product.findUnique({ where: { id } });
   if (!product) return notFound();
 
   const categories = await prisma.category.findMany({ select: { id: true, name: true } });
@@ -19,7 +16,7 @@ export default async function AdminEditProduct({ params }: { params: { id: strin
   return (
     <form action="/api/admin/products/update" method="post" className="space-y-4 max-w-lg card">
       <h1 className="text-2xl font-semibold">Edit product</h1>
-      <input type="hidden" name="id" value={product.id} />
+      <input type="hidden" name="id" value={id} />
       <input name="name" defaultValue={product.name} className="border rounded w-full p-2" required />
       <input name="slug" defaultValue={product.slug} className="border rounded w-full p-2" required />
       <textarea name="description" defaultValue={product.description} className="border rounded w-full p-2" required></textarea>

@@ -1,16 +1,13 @@
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAdminApi } from "@/lib/admin";
 import { ensureValidImageUrl } from "@/lib/images";
 import { productUpdateFormSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/account?redirect=/admin/products", req.url));
-  }
+  const guard = await requireAdminApi();
+  if (guard instanceof NextResponse) return guard;
 
   try {
     const form = await req.formData();

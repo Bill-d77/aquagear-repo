@@ -19,3 +19,38 @@ export const productFormSchema = z.object({
 export const productUpdateFormSchema = productFormSchema.extend({
   id: z.string().trim().min(1),
 });
+
+export const stockUpdateSchema = z.object({
+  id: z.string().trim().min(1),
+  stock: z.coerce.number().int().nonnegative(),
+});
+
+export const categoryFormSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+});
+
+export const categoryUpdateFormSchema = categoryFormSchema.extend({
+  id: z.string().trim().min(1),
+});
+
+export const storeSettingsSchema = z.object({
+  storeName: z.string().trim().min(1).max(80),
+  whatsappNumber: z
+    .string()
+    .trim()
+    .min(8)
+    .regex(/^[0-9]+$/, "Digits only (e.g., 96171634379)"),
+  shippingFlatRate: z.coerce.number().int().nonnegative(),
+  businessHours: z.string().trim().max(120),
+});
+
+export const orderNotesSchema = z.object({
+  id: z.string().trim().min(1),
+  notes: z.string().max(2000).optional().default(""),
+});
+
+export const orderTrackingSchema = z.object({
+  id: z.string().trim().min(1),
+  trackingNumber: z.string().trim().max(120).optional().default(""),
+  carrier: z.string().trim().max(80).optional().default(""),
+});

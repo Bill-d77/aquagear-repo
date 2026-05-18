@@ -1,14 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewProductPage() {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN") return <p>Access denied.</p>;
-
+  // Auth handled by /admin layout via requireAdmin()
   const categories = await prisma.category.findMany({ select: { id: true, name: true } });
   return (
     <form action="/api/admin/products/create" method="post" className="space-y-4 max-w-lg card">

@@ -1,18 +1,14 @@
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/admin";
 
 export default async function AdminLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const session = await auth();
-    const role = (session?.user as any)?.role;
-
-    if (role !== "ADMIN") {
-        redirect("/");
-    }
+    // Single gate — children render only for admins. Children must NOT
+    // duplicate this check; layouts apply before pages.
+    await requireAdmin();
 
     return (
         <div className="flex min-h-screen bg-gray-50">

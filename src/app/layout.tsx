@@ -8,6 +8,7 @@ import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { MobileMenu } from "@/components/layout/MobileMenu";
 import Image from "next/image";
 import { Metadata } from "next";
+import { getStoreSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "AquaGear4",
@@ -20,10 +21,9 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
+  const [session, settings] = await Promise.all([auth(), getStoreSettings()]);
   const isAuthed = !!session?.user;
-  const isAdmin = role === "ADMIN";
+  const isAdmin = session?.user?.role === "ADMIN";
 
   return (
     <html lang="en">
@@ -75,7 +75,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <div className="mx-auto max-w-7xl px-6 pb-8 text-xs text-gray-500">© {new Date().getFullYear()} AquaGear4</div>
           </footer>
           <Toaster position="bottom-right" richColors />
-          <WhatsAppButton />
+          <WhatsAppButton number={settings.whatsappNumber} />
         </Providers>
       </body>
     </html>

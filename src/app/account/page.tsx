@@ -62,7 +62,7 @@ function AccountContent() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Hello {session.user.name}</h1>
-        <p>Role, {(session.user as any).role}</p>
+        <p>Role, {session.user.role}</p>
         <button onClick={()=>signOut()} className="btn-outline">Sign out</button>
       </div>
     );

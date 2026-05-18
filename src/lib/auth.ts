@@ -74,7 +74,8 @@ export const authConfig: NextAuthConfig = {
           if (!ok) {
             return null;
           }
-          return { id: user.id, name: user.name, email: user.email, role: user.role };
+          const userRole: "USER" | "ADMIN" = user.role === "ADMIN" ? "ADMIN" : "USER";
+          return { id: user.id, name: user.name, email: user.email, role: userRole };
         } catch (error) {
           console.error("Authorize error:", error);
           return null;
@@ -84,11 +85,17 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.role = (user as any).role;
+      if (user) {
+        token.role = (user as { role?: "USER" | "ADMIN" }).role ?? "USER";
+        if ((user as { id?: string }).id) token.sub = (user as { id: string }).id;
+      }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) (session.user as any).role = token.role;
+      if (session.user) {
+        session.user.id = token.sub ?? "";
+        session.user.role = (token.role as "USER" | "ADMIN") ?? "USER";
+      }
       return session;
     }
   }

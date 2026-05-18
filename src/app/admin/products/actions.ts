@@ -1,14 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 import { revalidatePath } from "next/cache";
 
 export async function deleteProduct(id: string) {
-    const session = await auth();
-    const role = (session?.user as any)?.role;
-
-    if (role !== "ADMIN") {
+    if (!(await isAdmin())) {
         return { success: false, message: "Unauthorized" };
     }
 

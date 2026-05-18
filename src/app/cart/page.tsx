@@ -3,35 +3,47 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import { CART_COOKIE_NAME } from "@/lib/cart";
+import { getStoreSettings } from "@/lib/settings";
+import { ensureValidImageUrl } from "@/lib/images";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Cart · AquaGear",
+};
 
 export default async function CartPage() {
   const cookieStore = await cookies();
   const cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
-  const items = cartId ? await prisma.orderItem.findMany({
-    where: { orderId: cartId, order: { status: "PENDING" } },
-    include: { product: true }
-  }) : [] as Array<{ id: string; product: { name: string; imageUrl: string; slug?: string }; price: number; quantity: number }>;
+  const [items, settings] = await Promise.all([
+    cartId
+      ? prisma.orderItem.findMany({
+          where: { orderId: cartId, order: { status: "PENDING" } },
+          include: { product: true },
+        })
+      : Promise.resolve([] as Array<{ id: string; product: { name: string; imageUrl: string; slug?: string }; price: number; quantity: number }>),
+    getStoreSettings(),
+  ]);
   const total = items.reduce((s: number, i: { price: number; quantity: number }) => s + i.price * i.quantity, 0);
 
   const whatsappMessage = encodeURIComponent(
     `Hello, I'd like to order:\n` +
-    items.map((i: any) => `- ${i.product.name} x ${i.quantity}`).join("\n") +
+    items.map((i) => `- ${i.product.name} x ${i.quantity}`).join("\n") +
     (items.length ? `\nTotal: ${(total / 100).toFixed(2)} USD` : "")
   );
-  const whatsappLink = `https://wa.me/96171634379?text=${whatsappMessage}`;
+  const whatsappLink = `https://wa.me/${settings.whatsappNumber}?text=${whatsappMessage}`;
 
   return (
     <div>
       <h1 className="text-3xl font-bold tracking-tight mb-6">Your cart</h1>
       {items.length === 0 ? <p>Your cart is empty.</p> : (
         <div className="space-y-3">
-          {items.map((i: any) => (
+          {items.map((i) => (
             <div key={i.id} className="flex flex-col sm:flex-row sm:items-center justify-between card gap-4">
               <div className="flex items-center gap-4">
                 <div className="overflow-hidden rounded-xl shrink-0">
-                  <Image src={i.product.imageUrl} className="w-16 h-16 object-contain bg-white rounded-md" alt={i.product.name} width={64} height={64} />
+                  <Image src={ensureValidImageUrl(i.product.imageUrl)} className="w-16 h-16 object-contain bg-white rounded-md" alt={i.product.name} width={64} height={64} />
                 </div>
                 <div>
                   <div className="font-medium">{i.product.name}</div>
@@ -40,7 +52,7 @@ export default async function CartPage() {
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <a
-                  href={`https://wa.me/96171634379?text=${encodeURIComponent(`Hello, I have a question about ${i.product.name}.`)}`}
+                  href={`https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(`Hello, I have a question about ${i.product.name}.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-outline flex-1 sm:flex-none text-center justify-center"

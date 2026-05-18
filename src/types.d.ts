@@ -1,5 +1,24 @@
-// Ambient declarations for the app. (The previous useFormState shim for
-// "react-dom" was removed once checkout/page.tsx switched to useActionState
-// from "react", which is provided by @types/react's canary declarations.)
+// Ambient type declarations for the app.
+
+import type { DefaultSession } from "next-auth";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      role: "USER" | "ADMIN";
+    } & DefaultSession["user"];
+  }
+
+  interface User {
+    role?: "USER" | "ADMIN";
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: "USER" | "ADMIN";
+  }
+}
 
 export {};

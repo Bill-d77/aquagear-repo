@@ -5,13 +5,15 @@ import {
     ShoppingCart,
     Users,
     Settings,
-    LogOut
+    LogOut,
+    Tag,
 } from "lucide-react";
 
 const navItems = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/products", label: "Products", icon: Package },
     { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+    { href: "/admin/products", label: "Products", icon: Package },
+    { href: "/admin/categories", label: "Categories", icon: Tag },
     { href: "/admin/users", label: "Customers", icon: Users },
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
