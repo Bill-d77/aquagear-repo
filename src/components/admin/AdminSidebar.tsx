@@ -53,6 +53,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="p-4 border-t border-slate-800">
         <form action="/api/auth/signout" method="POST">
+          <input type="hidden" name="callbackUrl" value="/" />
           <button className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-red-400 hover:bg-slate-800 transition-colors">
             <LogOut className="w-5 h-5 shrink-0" />
             <span>Sign Out</span>

@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { MobileMenu } from "@/components/layout/MobileMenu";
 import { NavLinks } from "@/components/layout/NavLinks";
+import { StorefrontShell } from "@/components/layout/StorefrontShell";
 import Image from "next/image";
 import { Metadata } from "next";
 import { getStoreSettings } from "@/lib/settings";
@@ -39,50 +40,61 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const isAuthed = !!session?.user;
   const isAdmin = session?.user?.role === "ADMIN";
 
+  const header = (
+    <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 font-extrabold tracking-tight text-xl">
+          <Image src="/logo.png" alt="AquaGear4 Logo" width={40} height={40} className="w-10 h-10 object-contain" />
+          <span>AquaGear4</span>
+        </Link>
+        <NavLinks isAuthed={isAuthed} isAdmin={isAdmin} initialCartCount={cartCount} />
+        <MobileMenu isAuthed={isAuthed} isAdmin={isAdmin} cartCount={cartCount} />
+      </nav>
+    </header>
+  );
+
+  const footer = (
+    <footer className="border-t mt-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-3 gap-6 text-sm text-gray-600">
+        <div>
+          <div className="flex items-center gap-2 font-semibold text-gray-900 mb-2">
+            <Image src="/logo.png" alt="AquaGear4 Logo" width={32} height={32} className="w-8 h-8 object-contain" />
+            <span>AquaGear4</span>
+          </div>
+          <p>Quality sea gear, floats, and safety equipment.</p>
+        </div>
+        <div>
+          <div className="font-semibold text-gray-900">Links</div>
+          <div className="mt-2 space-y-1">
+            <Link href="/shop" className="block hover:text-sky-700">Shop</Link>
+            <Link href="/account" className="block hover:text-sky-700">Account</Link>
+          </div>
+        </div>
+        <div>
+          <div className="font-semibold text-gray-900">Contact</div>
+          <p className="mt-2">WhatsApp available for quick support.</p>
+          <div className="mt-2 space-y-1">
+            <a href="https://instagram.com/aquagear4" target="_blank" rel="noopener noreferrer" className="hover:text-sky-700">Instagram @aquagear4</a>
+            <a href="https://www.facebook.com/share/1EBsXWNqQz/" target="_blank" rel="noopener noreferrer" className="hover:text-sky-700">Facebook page</a>
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-8 text-xs text-gray-500">© {new Date().getFullYear()} AquaGear4</div>
+    </footer>
+  );
+
   return (
     <html lang="en">
       <body className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-gray-900">
         <Providers>
-          <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b">
-            <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2 font-extrabold tracking-tight text-xl">
-                <Image src="/logo.png" alt="AquaGear4 Logo" width={40} height={40} className="w-10 h-10 object-contain" />
-                <span>AquaGear4</span>
-              </Link>
-              <NavLinks isAuthed={isAuthed} isAdmin={isAdmin} initialCartCount={cartCount} />
-              <MobileMenu isAuthed={isAuthed} isAdmin={isAdmin} cartCount={cartCount} />
-            </nav>
-          </header>
-          <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">{children}</main>
-          <footer className="border-t mt-24">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-3 gap-6 text-sm text-gray-600">
-              <div>
-                <div className="flex items-center gap-2 font-semibold text-gray-900 mb-2">
-                  <Image src="/logo.png" alt="AquaGear4 Logo" width={32} height={32} className="w-8 h-8 object-contain" />
-                  <span>AquaGear4</span>
-                </div>
-                <p>Quality sea gear, floats, and safety equipment.</p>
-              </div>
-              <div>
-                <div className="font-semibold text-gray-900">Links</div>
-                <div className="mt-2 space-y-1">
-                  <Link href="/shop" className="block hover:text-sky-700">Shop</Link>
-                  <Link href="/account" className="block hover:text-sky-700">Account</Link>
-                </div>
-              </div>
-              <div>
-                <div className="font-semibold text-gray-900">Contact</div>
-                <p className="mt-2">WhatsApp available for quick support.</p>
-                <div className="mt-2 space-y-1">
-                  <a href="https://instagram.com/aquagear4" target="_blank" rel="noopener noreferrer" className="hover:text-sky-700">Instagram @aquagear4</a>
-                  <a href="https://www.facebook.com/share/1EBsXWNqQz/" target="_blank" rel="noopener noreferrer" className="hover:text-sky-700">Facebook page</a>
-                </div>
-              </div>
-            </div>
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-8 text-xs text-gray-500">© {new Date().getFullYear()} AquaGear4</div>
-          </footer>
+          <StorefrontShell
+            header={header}
+            footer={footer}
+            whatsapp={<WhatsAppButton number={settings.whatsappNumber} />}
+          >
+            {children}
+          </StorefrontShell>
           <Toaster position="bottom-right" richColors />
-          <WhatsAppButton number={settings.whatsappNumber} />
         </Providers>
       </body>
     </html>
