@@ -33,6 +33,11 @@ export function AddToCartButton({ productId, quantity = 1 }: AddToCartButtonProp
             setIsSuccess(true);
             toast.success("Added to cart!");
 
+            // Notify the navbar badge to increment optimistically
+            window.dispatchEvent(
+              new CustomEvent("cart:updated", { detail: { delta: quantity } })
+            );
+
             // Reset after animation
             setTimeout(() => setIsSuccess(false), 2000);
         } catch (error) {

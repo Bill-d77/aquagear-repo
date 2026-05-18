@@ -6,9 +6,13 @@ import { auth } from "@/lib/auth";
 import { Toaster } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { MobileMenu } from "@/components/layout/MobileMenu";
+import { NavLinks } from "@/components/layout/NavLinks";
 import Image from "next/image";
 import { Metadata } from "next";
 import { getStoreSettings } from "@/lib/settings";
+import { cookies } from "next/headers";
+import { CART_COOKIE_NAME } from "@/lib/cart";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "AquaGear4",
@@ -21,7 +25,17 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [session, settings] = await Promise.all([auth(), getStoreSettings()]);
+  const cookieStore = await cookies();
+  const cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
+
+  const [session, settings, cartCount] = await Promise.all([
+    auth(),
+    getStoreSettings(),
+    cartId
+      ? prisma.orderItem.count({ where: { orderId: cartId, order: { status: "PENDING" } } })
+      : Promise.resolve(0),
+  ]);
+
   const isAuthed = !!session?.user;
   const isAdmin = session?.user?.role === "ADMIN";
 
@@ -30,25 +44,18 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-gray-900">
         <Providers>
           <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b">
-            <nav className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+            <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
               <Link href="/" className="flex items-center gap-2 font-extrabold tracking-tight text-xl">
                 <Image src="/logo.png" alt="AquaGear4 Logo" width={40} height={40} className="w-10 h-10 object-contain" />
                 <span>AquaGear4</span>
               </Link>
-              <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-                <Link href="/shop" className="hover:text-sky-700">Shop</Link>
-                <Link href="/cart" className="hover:text-sky-700">Cart</Link>
-                <Link href="/account" className="hover:text-sky-700">{isAuthed ? "Account" : "Sign in"}</Link>
-                {isAdmin && (
-                  <Link href="/admin" className="text-white bg-sky-600 hover:bg-sky-700 px-3 py-1.5 rounded-lg">Dashboard</Link>
-                )}
-              </div>
-              <MobileMenu isAuthed={isAuthed} isAdmin={isAdmin} />
+              <NavLinks isAuthed={isAuthed} isAdmin={isAdmin} initialCartCount={cartCount} />
+              <MobileMenu isAuthed={isAuthed} isAdmin={isAdmin} cartCount={cartCount} />
             </nav>
           </header>
-          <main className="mx-auto max-w-7xl px-6 py-10">{children}</main>
+          <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">{children}</main>
           <footer className="border-t mt-24">
-            <div className="mx-auto max-w-7xl px-6 py-10 grid md:grid-cols-3 gap-6 text-sm text-gray-600">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-3 gap-6 text-sm text-gray-600">
               <div>
                 <div className="flex items-center gap-2 font-semibold text-gray-900 mb-2">
                   <Image src="/logo.png" alt="AquaGear4 Logo" width={32} height={32} className="w-8 h-8 object-contain" />
@@ -72,7 +79,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 </div>
               </div>
             </div>
-            <div className="mx-auto max-w-7xl px-6 pb-8 text-xs text-gray-500">© {new Date().getFullYear()} AquaGear4</div>
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-8 text-xs text-gray-500">© {new Date().getFullYear()} AquaGear4</div>
           </footer>
           <Toaster position="bottom-right" richColors />
           <WhatsAppButton number={settings.whatsappNumber} />
