@@ -4,16 +4,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { cartCookieOptions, CART_COOKIE_NAME, MAX_CART_QUANTITY } from "@/lib/cart";
 
-function getSafeRedirect(req: Request) {
-  const url = new URL(req.url);
-  const redirectUrl = url.searchParams.get("redirect") || "/cart";
-  return redirectUrl.startsWith("/") && !redirectUrl.startsWith("//") ? redirectUrl : "/cart";
-}
-
 export async function POST(req: Request) {
   try {
-    const redirectUrl = getSafeRedirect(req);
-
     const form = await req.formData();
     const productIdValue = form.get("productId");
     const productId = typeof productIdValue === "string" ? productIdValue : "";
@@ -32,21 +24,19 @@ export async function POST(req: Request) {
 
     const cookieStore = await cookies();
     let cartId = cookieStore.get(CART_COOKIE_NAME)?.value;
-    let res: NextResponse | null = null;
+    let newCartId: string | null = null;
 
     if (cartId) {
       const existing = await prisma.order.findFirst({ where: { id: cartId, status: "PENDING" } });
       if (!existing) {
         const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
         cartId = order.id;
-        res = NextResponse.redirect(new URL(redirectUrl, req.url));
-        res.cookies.set(CART_COOKIE_NAME, order.id, cartCookieOptions);
+        newCartId = order.id;
       }
     } else {
       const order = await prisma.order.create({ data: { total: 0, status: "PENDING" } });
       cartId = order.id;
-      res = NextResponse.redirect(new URL(redirectUrl, req.url));
-      res.cookies.set(CART_COOKIE_NAME, order.id, cartCookieOptions);
+      newCartId = order.id;
     }
 
     const existingItem = await prisma.orderItem.findFirst({
@@ -68,7 +58,11 @@ export async function POST(req: Request) {
       });
     }
 
-    return res ?? NextResponse.redirect(new URL(redirectUrl, req.url));
+    const res = NextResponse.json({ success: true });
+    if (newCartId) {
+      res.cookies.set(CART_COOKIE_NAME, newCartId, cartCookieOptions);
+    }
+    return res;
   } catch (error) {
     console.error("Error in /api/cart/add:", error);
     return NextResponse.json(
