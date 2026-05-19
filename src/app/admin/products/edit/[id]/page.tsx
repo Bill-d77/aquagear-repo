@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
+import { ProductNameSlug } from "@/components/admin/ProductNameSlug";
 import { DeleteProductButton } from "@/components/admin/DeleteProductButton";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +21,7 @@ export default async function AdminEditProduct({ params }: { params: Promise<{ i
     <form action="/api/admin/products/update" method="post" className="space-y-4 max-w-lg card">
       <h1 className="text-2xl font-semibold">Edit product</h1>
       <input type="hidden" name="id" value={id} />
-      <input name="name" defaultValue={product.name} className="border rounded w-full p-2" required />
-      <input name="slug" defaultValue={product.slug} className="border rounded w-full p-2" required />
+      <ProductNameSlug defaultName={product.name} defaultSlug={product.slug} />
       <textarea name="description" defaultValue={product.description} className="border rounded w-full p-2" required></textarea>
       <input name="price" type="number" defaultValue={product.price} className="border rounded w-full p-2" required />
       <div>

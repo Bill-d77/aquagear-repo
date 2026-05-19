@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
+import { ProductNameSlug } from "@/components/admin/ProductNameSlug";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +10,7 @@ export default async function NewProductPage() {
   return (
     <form action="/api/admin/products/create" method="post" className="space-y-4 max-w-lg card">
       <h1 className="text-2xl font-semibold">Add product</h1>
-      <input name="name" placeholder="Name" className="border rounded w-full p-2" required />
-      <input name="slug" placeholder="Slug" className="border rounded w-full p-2" required />
+      <ProductNameSlug />
       <textarea name="description" placeholder="Description" className="border rounded w-full p-2" required></textarea>
       <input name="price" type="number" placeholder="Price in cents" className="border rounded w-full p-2" required />
       <div>
