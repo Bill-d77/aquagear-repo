@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { ensureValidImageUrl } from "@/lib/images";
 import { auth } from "@/lib/auth";
 import { ProductQuantitySelector } from "@/components/cart/ProductQuantitySelector";
+import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 import { getStoreSettings } from "@/lib/settings";
 import type { Metadata } from "next";
 
@@ -26,7 +25,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const [product, session, settings] = await Promise.all([
-    prisma.product.findUnique({ where: { slug } }),
+    prisma.product.findUnique({
+      where: { slug },
+      include: { images: { orderBy: { order: "asc" } } },
+    }),
     auth(),
     getStoreSettings(),
   ]);
@@ -34,9 +36,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const isAuthed = !!session?.user;
   return (
     <div className="grid md:grid-cols-2 gap-10">
-      <div className="card overflow-hidden">
-        <Image src={ensureValidImageUrl(product.imageUrl)} alt={product.name} width={800} height={600} className="w-full h-80 object-contain bg-white" />
-      </div>
+      <ProductImageGallery
+        name={product.name}
+        imageUrl={product.imageUrl}
+        images={product.images}
+      />
       <div className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
         <div className="text-xl">{(product.price / 100).toFixed(2)} USD</div>
