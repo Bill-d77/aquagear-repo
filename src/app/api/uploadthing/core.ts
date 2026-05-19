@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/admin";
 const f = createUploadthing();
 
 export const ourFileRouter = {
-  productImage: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+  productImage: f({ image: { maxFileSize: "4MB", maxFileCount: 10 } })
     .middleware(async () => {
       if (!(await isAdmin())) {
         throw new Error("Unauthorized");

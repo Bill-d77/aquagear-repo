@@ -11,7 +11,8 @@ export const productFormSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens"),
   description: z.string().trim().min(1),
   price: z.coerce.number().int().nonnegative(),
-  imageUrl: z.string().trim().min(1),
+  /** Array of image URLs – at least one is required. The first is treated as primary. */
+  imageUrls: z.array(z.string().trim().min(1)).min(1, "At least one image is required"),
   stock: z.coerce.number().int().nonnegative(),
   categoryId: z.string().trim().min(1),
 });

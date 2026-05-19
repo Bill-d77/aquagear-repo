@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 export default async function AdminEditProduct({ params }: { params: Promise<{ id: string }> }) {
   // Auth handled by /admin layout via requireAdmin()
   const { id } = await params;
-  const product = await prisma.product.findUnique({ where: { id } });
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: { images: { orderBy: { order: "asc" } } },
+  });
   if (!product) return notFound();
 
   const categories = await prisma.category.findMany({ select: { id: true, name: true } });
@@ -22,8 +25,17 @@ export default async function AdminEditProduct({ params }: { params: Promise<{ i
       <textarea name="description" defaultValue={product.description} className="border rounded w-full p-2" required></textarea>
       <input name="price" type="number" defaultValue={product.price} className="border rounded w-full p-2" required />
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
-        <ProductImageUpload name="imageUrl" defaultValue={product.imageUrl} />
+        <label className="block text-sm font-medium text-gray-700 mb-1">Product Images</label>
+        <ProductImageUpload
+          name="imageUrls"
+          defaultValues={
+            product.images.length > 0
+              ? product.images.map((img) => img.url)
+              : product.imageUrl
+              ? [product.imageUrl]
+              : []
+          }
+        />
       </div>
       <input name="stock" type="number" defaultValue={product.stock} className="border rounded w-full p-2" required />
       <select name="categoryId" className="border rounded w-full p-2" defaultValue={product.categoryId} required>

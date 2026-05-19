@@ -14,8 +14,8 @@ export default async function NewProductPage() {
       <textarea name="description" placeholder="Description" className="border rounded w-full p-2" required></textarea>
       <input name="price" type="number" placeholder="Price in cents" className="border rounded w-full p-2" required />
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
-        <ProductImageUpload name="imageUrl" />
+        <label className="block text-sm font-medium text-gray-700 mb-1">Product Images</label>
+        <ProductImageUpload name="imageUrls" />
       </div>
       <input name="stock" type="number" placeholder="Stock" className="border rounded w-full p-2" required />
       <select name="categoryId" className="border rounded w-full p-2" required>
