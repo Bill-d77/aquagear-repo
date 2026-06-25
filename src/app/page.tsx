@@ -81,7 +81,7 @@ export default async function Home() {
   return (
     <div className="space-y-16 sm:space-y-24 py-6 sm:py-10">
       {/* ───────── Hero ───────── */}
-      <section className="fade-up relative overflow-hidden rounded-3xl shadow-xl min-h-[520px] sm:min-h-[560px] lg:min-h-[600px] flex items-center">
+      <section className="fade-up relative overflow-hidden rounded-3xl shadow-xl min-h-[440px] sm:min-h-[560px] lg:min-h-[600px] flex items-end sm:items-center">
         {/* Full-bleed background photo (object-cover keeps it sharp & responsive).
             ponytail: to use your exact asset, drop it in /public and set HERO_IMG = "/hero.jpg". */}
         <Image
@@ -92,8 +92,8 @@ export default async function Home() {
           sizes="100vw"
           className="object-cover object-center"
         />
-        {/* Dark gradient — heavy on the left for text contrast, clear on the right to show the photo */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-950/85 via-blue-950/55 to-transparent" />
+        {/* Dark gradient — bottom-up on mobile (text sits low), left-heavy on sm+ (text sits left) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-950/90 via-blue-950/60 to-blue-950/25 sm:bg-gradient-to-r sm:from-blue-950/85 sm:via-blue-950/55 sm:to-transparent" />
 
         {/* Overlaid content (HTML/CSS, not baked into the image) */}
         <div className="relative w-full px-6 sm:px-10 lg:px-14 py-12 text-white">
@@ -113,13 +113,13 @@ export default async function Home() {
               across Lebanon.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/shop" className="btn-primary px-6 py-3 text-base group">
+              <Link href="/shop" className="btn-primary w-full sm:w-auto px-6 py-3 text-base group">
                 Shop Collection
                 <ArrowRight size={18} className="ml-2 transition-transform group-hover:translate-x-1" />
               </Link>
               <Link
                 href="/shop"
-                className="inline-flex items-center justify-center rounded-lg border border-white/50 bg-white/5 backdrop-blur px-6 py-3 text-base font-medium text-white hover:bg-white/15 transition group"
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg border border-white/50 bg-white/5 backdrop-blur px-6 py-3 text-base font-medium text-white hover:bg-white/15 transition group"
               >
                 Browse Categories
                 <ArrowRight size={18} className="ml-2 transition-transform group-hover:translate-x-1" />
