@@ -103,8 +103,17 @@ export default async function Shop({
   return (
     <div className="space-y-12 sm:space-y-16 py-6 sm:py-10">
       {/* ───────── Hero ───────── */}
-      <section className="fade-up relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 via-blue-700 to-blue-900 px-6 sm:px-10 py-12 sm:py-16 text-white">
-        <Waves className="absolute -right-6 -bottom-6 opacity-10" size={220} aria-hidden="true" />
+      <section className="fade-up relative overflow-hidden rounded-3xl px-6 sm:px-10 py-12 sm:py-16 min-h-[340px] sm:min-h-[400px] flex items-center text-white">
+        <Image
+          src="/product_hero.png"
+          alt="AquaGear marine and watersports equipment"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        {/* Readability gradient: bottom-up on mobile, left-heavy on sm+ */}
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-950/90 via-blue-950/55 to-blue-950/20 sm:bg-gradient-to-r sm:from-blue-950/85 sm:via-blue-950/50 sm:to-transparent" />
         <div className="relative max-w-2xl space-y-4">
           <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold tracking-tight">
             Shop Marine Equipment
