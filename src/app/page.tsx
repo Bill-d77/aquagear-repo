@@ -81,65 +81,72 @@ export default async function Home() {
   return (
     <div className="space-y-16 sm:space-y-24 py-6 sm:py-10">
       {/* ───────── Hero ───────── */}
-      <section className="fade-up grid lg:grid-cols-[45fr_55fr] gap-8 lg:gap-12 items-center">
-        <div className="space-y-6">
-          <span className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-1.5 text-sm font-medium text-sky-700 shadow-sm">
-            🇱🇧 Trusted Marine Equipment in Lebanon
-          </span>
-          <h1 className="text-4xl sm:text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.05]">
-            Everything You Need for{" "}
-            <span className="bg-gradient-to-r from-sky-500 to-blue-700 bg-clip-text text-transparent">
-              Life on the Water
+      <section className="fade-up relative overflow-hidden rounded-3xl shadow-xl min-h-[520px] sm:min-h-[560px] lg:min-h-[600px] flex items-center">
+        {/* Full-bleed background photo (object-cover keeps it sharp & responsive).
+            ponytail: to use your exact asset, drop it in /public and set HERO_IMG = "/hero.jpg". */}
+        <Image
+          src={HERO_IMG}
+          alt="Paddler exploring crystal-clear water at golden hour with AquaGear equipment"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        {/* Dark gradient — heavy on the left for text contrast, clear on the right to show the photo */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-950/85 via-blue-950/55 to-transparent" />
+
+        {/* Overlaid content (HTML/CSS, not baked into the image) */}
+        <div className="relative w-full px-6 sm:px-10 lg:px-14 py-12 text-white">
+          <div className="max-w-xl space-y-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/10 backdrop-blur px-4 py-1.5 text-sm font-medium shadow-sm">
+              🇱🇧 Trusted Marine Equipment in Lebanon
             </span>
-          </h1>
-          <p className="text-gray-600 text-base sm:text-lg max-w-xl">
-            Discover professional life jackets, diving gear, waterproof bags, swimming accessories,
-            and boating essentials — trusted by professionals and outdoor enthusiasts across Lebanon.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link href="/shop" className="btn-primary px-6 py-3 text-base group">
-              Shop Collection
-              <ArrowRight size={18} className="ml-2 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link href="/shop" className="btn-outline px-6 py-3 text-base group">
-              Browse Categories
-              <ArrowRight size={18} className="ml-2 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-3 pt-2 text-sm text-gray-600">
-            <span className="inline-flex items-center gap-2"><ShieldCheck size={16} className="text-sky-600" /> Secure Checkout</span>
-            <span className="inline-flex items-center gap-2"><Truck size={16} className="text-sky-600" /> Fast Delivery</span>
-            <span className="inline-flex items-center gap-2"><MessageCircle size={16} className="text-sky-600" /> WhatsApp Support</span>
-            <span className="inline-flex items-center gap-2"><BadgeCheck size={16} className="text-sky-600" /> Genuine Products</span>
+            <h1 className="text-4xl sm:text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.05] drop-shadow-sm">
+              Everything You Need for{" "}
+              <span className="bg-gradient-to-r from-sky-300 to-sky-500 bg-clip-text text-transparent">
+                Life on the Water
+              </span>
+            </h1>
+            <p className="text-white/85 text-base sm:text-lg max-w-lg">
+              Discover professional life jackets, diving gear, floats, dry bags, kickboards, safety
+              equipment, and boating essentials — trusted by swimmers, boat owners, and professionals
+              across Lebanon.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/shop" className="btn-primary px-6 py-3 text-base group">
+                Shop Collection
+                <ArrowRight size={18} className="ml-2 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/shop"
+                className="inline-flex items-center justify-center rounded-lg border border-white/50 bg-white/5 backdrop-blur px-6 py-3 text-base font-medium text-white hover:bg-white/15 transition group"
+              >
+                Browse Categories
+                <ArrowRight size={18} className="ml-2 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-3 pt-2 text-sm text-white/90">
+              <span className="inline-flex items-center gap-2"><ShieldCheck size={16} className="text-sky-300" /> Secure Checkout</span>
+              <span className="inline-flex items-center gap-2"><Truck size={16} className="text-sky-300" /> Fast Delivery Across Lebanon</span>
+              <span className="inline-flex items-center gap-2"><MessageCircle size={16} className="text-sky-300" /> WhatsApp Support</span>
+              <span className="inline-flex items-center gap-2"><BadgeCheck size={16} className="text-sky-300" /> Genuine Products</span>
+            </div>
           </div>
         </div>
 
-        {/* Hero visual + floating glass metrics card */}
-        <div className="relative">
-          <div className="relative overflow-hidden rounded-3xl shadow-xl min-h-[280px] md:min-h-[420px]">
-            <Image
-              src={HERO_IMG}
-              alt="Paddler exploring crystal-clear water with AquaGear equipment"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 55vw"
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/30 via-transparent to-transparent" />
-          </div>
-          <div className="glass absolute bottom-4 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 rounded-2xl p-4 grid grid-cols-4 gap-2 text-white">
-            {[
-              { icon: Star, label: "Rated by Customers" },
-              { icon: Truck, label: "Fast Delivery" },
-              { icon: ShieldCheck, label: "Marine Quality" },
-              { icon: Award, label: "Trusted by Pros" },
-            ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex flex-col items-center text-center gap-1">
-                <Icon size={20} className="drop-shadow" />
-                <span className="text-[11px] leading-tight font-medium drop-shadow">{label}</span>
-              </div>
-            ))}
-          </div>
+        {/* Floating glass metrics card — hidden on small screens to avoid covering the photo subject */}
+        <div className="glass absolute bottom-6 right-6 hidden md:grid grid-cols-4 gap-3 rounded-2xl p-4 text-white max-w-md">
+          {[
+            { icon: Star, label: "Rated by Customers" },
+            { icon: Truck, label: "Fast Delivery" },
+            { icon: ShieldCheck, label: "Marine Quality" },
+            { icon: Award, label: "Trusted by Professionals" },
+          ].map(({ icon: Icon, label }) => (
+            <div key={label} className="flex flex-col items-center text-center gap-1">
+              <Icon size={20} className="drop-shadow" />
+              <span className="text-[11px] leading-tight font-medium drop-shadow">{label}</span>
+            </div>
+          ))}
         </div>
       </section>
 
