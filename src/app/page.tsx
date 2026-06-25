@@ -4,6 +4,7 @@ import { Truck, ShieldCheck, MessageCircle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ensureValidImageUrl } from "@/lib/images";
 import type { Metadata } from "next";
+import PriceTag from "@/components/product/PriceTag";
 
 export const metadata: Metadata = {
   title: "AquaGear4 — Sea gear for Lebanon",
@@ -92,7 +93,7 @@ export default async function Home() {
                   />
                 </div>
                 <p className="font-medium text-sm text-gray-900 line-clamp-2">{p.name}</p>
-                <p className="text-xs text-gray-500 mt-1">{(p.price / 100).toFixed(2)} USD</p>
+                <PriceTag priceCents={p.price} />
               </Link>
             ))}
           </div>
