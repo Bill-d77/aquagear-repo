@@ -43,7 +43,7 @@ const STATS = [
   { icon: Headphones, value: "24/7", label: "Support" },
 ];
 
-const HERO_IMG = "/hero_section.png";
+const HERO_IMG = "/hero_section1.png";
 const STATS_IMG = "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?w=1600&q=60";
 const PROMO_IMG = "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1600&q=60";
 
