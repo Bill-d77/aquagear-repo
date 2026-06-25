@@ -6,6 +6,7 @@ import { ensureValidImageUrl } from "@/lib/images";
 import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import { getStoreSettings } from "@/lib/settings";
 import type { Metadata } from "next";
+import PriceTag from "@/components/product/PriceTag";
 
 export const dynamic = "force-dynamic";
 
@@ -99,7 +100,7 @@ export default async function Shop({
                     />
                   </div>
                   <h2 className="mt-1 font-medium text-gray-900 text-sm leading-snug">{p.name}</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">{(p.price / 100).toFixed(2)} USD</p>
+                  <PriceTag priceCents={p.price} />
                 </Link>
 
                 <div className="mt-3">

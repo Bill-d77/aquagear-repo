@@ -6,6 +6,7 @@ import { ProductQuantitySelector } from "@/components/cart/ProductQuantitySelect
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 import { getStoreSettings } from "@/lib/settings";
 import type { Metadata } from "next";
+import PriceTag from "@/components/product/PriceTag";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       />
       <div className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
-        <div className="text-xl">{(product.price / 100).toFixed(2)} USD</div>
+        <PriceTag priceCents={product.price} size="lg" />
         <p className="text-gray-700">{product.description}</p>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
