@@ -64,7 +64,7 @@ export function SiteHeader({ isAuthed, isAdmin, cartCount: initialCartCount, wha
         {/* Left — logo */}
         <div className="flex justify-start">
           <Link href="/" aria-label="AquaGear home" className="inline-flex items-center transition-transform duration-200 hover:scale-[1.03]">
-            <Image src="/logo.png" alt="AquaGear" width={48} height={48} priority className="h-11 w-11 rounded-xl object-contain" />
+            <Image src="/logo_trans.png" alt="AquaGear" width={48} height={48} priority className="h-11 w-11 object-contain" />
           </Link>
         </div>
 
