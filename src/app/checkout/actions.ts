@@ -1,11 +1,13 @@
 "use server";
 
 import { z } from "zod";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CART_COOKIE_NAME } from "@/lib/cart";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
+import { notifyNewOrder } from "@/lib/telegram";
 
 const checkoutSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -96,6 +98,10 @@ export async function submitOrder(prevState: any, formData: FormData) {
       path: "/",
       maxAge: 0,
     });
+
+    // Fire the Telegram admin alert after the response is sent — never delays
+    // or breaks checkout. `cartId` is the order id (notifyNewOrder is non-throwing).
+    after(() => notifyNewOrder(cartId));
 
   } catch (e) {
     console.error(e);
