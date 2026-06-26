@@ -54,7 +54,7 @@ export function AddToCartButton({ productId, quantity = 1 }: AddToCartButtonProp
             className={`
         relative w-full h-12 rounded-lg font-medium text-white shadow-sm transition-colors
         flex items-center justify-center gap-2
-        ${isSuccess ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}
+        ${isSuccess ? "bg-green-600 hover:bg-green-700" : "bg-sky-600 hover:bg-sky-700"}
       `}
         >
             <AnimatePresence mode="wait">
