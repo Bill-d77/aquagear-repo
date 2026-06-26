@@ -103,7 +103,7 @@ export default async function Shop({
   return (
     <div className="space-y-12 sm:space-y-16 py-6 sm:py-10">
       {/* ───────── Hero ───────── */}
-      <section className="fade-up relative overflow-hidden rounded-3xl px-6 sm:px-10 py-12 sm:py-16 min-h-[340px] sm:min-h-[400px] flex items-center text-white">
+      <section className="fade-up relative overflow-hidden rounded-3xl px-6 sm:px-10 py-10 sm:py-16 min-h-[360px] sm:min-h-[400px] flex items-end sm:items-center text-white">
         <Image
           src="/product_hero.png"
           alt="AquaGear marine and watersports equipment"
@@ -123,10 +123,10 @@ export default async function Shop({
             adventures — trusted by professionals across Lebanon.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 pt-1">
-            <a href="#products" className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 font-semibold text-blue-800 hover:bg-sky-50 transition">
+            <a href="#products" className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-white px-6 py-3 font-semibold text-blue-800 hover:bg-sky-50 transition">
               Browse Products
             </a>
-            <a href="#categories" className="inline-flex items-center justify-center rounded-lg border border-white/50 bg-white/10 backdrop-blur px-6 py-3 font-medium text-white hover:bg-white/20 transition">
+            <a href="#categories" className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg border border-white/50 bg-white/10 backdrop-blur px-6 py-3 font-medium text-white hover:bg-white/20 transition">
               Explore Categories
             </a>
           </div>
