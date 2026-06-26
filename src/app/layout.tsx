@@ -5,8 +5,7 @@ import { Providers } from "./providers";
 import { auth } from "@/lib/auth";
 import { Toaster } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
-import { MobileMenu } from "@/components/layout/MobileMenu";
-import { NavLinks } from "@/components/layout/NavLinks";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import { StorefrontShell } from "@/components/layout/StorefrontShell";
 import Image from "next/image";
 import { Metadata } from "next";
@@ -41,16 +40,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const isAdmin = session?.user?.role === "ADMIN";
 
   const header = (
-    <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b">
-      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 font-extrabold tracking-tight text-xl">
-          <Image src="/logo.png" alt="AquaGear4 Logo" width={40} height={40} className="w-10 h-10 object-contain" />
-          <span>AquaGear4</span>
-        </Link>
-        <NavLinks isAuthed={isAuthed} isAdmin={isAdmin} initialCartCount={cartCount} />
-        <MobileMenu isAuthed={isAuthed} isAdmin={isAdmin} cartCount={cartCount} />
-      </nav>
-    </header>
+    <SiteHeader
+      isAuthed={isAuthed}
+      isAdmin={isAdmin}
+      cartCount={cartCount}
+      whatsappNumber={settings.whatsappNumber}
+    />
   );
 
   const footer = (
