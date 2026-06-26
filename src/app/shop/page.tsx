@@ -222,9 +222,9 @@ export default async function Shop({
             <Link href="/shop" className="btn-primary">Reset filters</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
             {products.map((p) => (
-              <div key={p.id} className="card group relative flex flex-col hover:shadow-lg hover:-translate-y-1 hover:border-sky-300 transition-all duration-300">
+              <div key={p.id} className="card !p-3 sm:!p-5 group relative flex flex-col hover:shadow-lg hover:-translate-y-1 hover:border-sky-300 transition-all duration-300">
                 {/* Badge */}
                 <span className={`absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white ${isNew(p.createdAt) ? "bg-emerald-500" : "bg-sky-600"}`}>
                   {isNew(p.createdAt) ? "NEW" : "SALE"}
@@ -241,7 +241,7 @@ export default async function Shop({
                       alt={p.name}
                       width={320}
                       height={320}
-                      className="w-full h-44 object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                      className="w-full h-32 sm:h-44 object-contain p-2 transition-transform duration-300 group-hover:scale-105"
                     />
                   </div>
                   <h2 className="font-medium text-gray-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{p.name}</h2>
