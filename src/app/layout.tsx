@@ -53,7 +53,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 grid md:grid-cols-3 gap-6 text-sm text-gray-600">
         <div>
           <div className="flex items-center gap-2 font-semibold text-gray-900 mb-2">
-            <Image src="/logo.png" alt="AquaGear4 Logo" width={32} height={32} className="w-8 h-8 object-contain" />
+            <Image src="/logo_trans.png" alt="AquaGear Logo" width={32} height={32} className="w-8 h-8 object-contain" />
             <span>AquaGear4</span>
           </div>
           <p>Quality sea gear, floats, and safety equipment.</p>
