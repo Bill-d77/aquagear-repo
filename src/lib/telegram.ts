@@ -109,26 +109,24 @@ async function postTelegram(text: string): Promise<boolean> {
   return false;
 }
 
-/**
- * Notify the admin about a placed order. Idempotent and non-throwing:
- * - claims the order via `notifiedAt` so a duplicate request sends nothing;
- * - releases the claim if delivery ultimately fails, so it can be retried later.
- */
+// ponytail: in-memory dedupe. The checkout flow already flips an order
+// PENDING→PLACED exactly once before firing this, so exactly-once is guaranteed
+// per order; this Set just guards against a double-invoke within one instance.
+// If you run many instances and need cross-process dedupe, add a DB flag.
+const sent = new Set<string>();
+
+/** Notify the admin about a placed order. Non-throwing — never affects checkout. */
 export async function notifyNewOrder(orderId: string): Promise<void> {
   try {
+    if (sent.has(orderId)) return;
     const { prisma } = await import("@/lib/prisma");
-    // Atomic claim — duplicate protection keyed on order id. count===1 means we won the claim.
-    const claim = await prisma.order.updateMany({
-      where: { id: orderId, notifiedAt: null },
-      data: { notifiedAt: new Date() },
-    });
-    if (claim.count !== 1) return; // already notified or claimed elsewhere
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { items: { include: { product: true } } },
     });
     if (!order) return;
+    sent.add(orderId);
 
     const subtotal = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const base = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? "";
@@ -150,10 +148,7 @@ export async function notifyNewOrder(orderId: string): Promise<void> {
     });
 
     const ok = await postTelegram(text);
-    if (!ok) {
-      // Release the claim so the notification isn't lost permanently.
-      await prisma.order.updateMany({ where: { id: orderId }, data: { notifiedAt: null } });
-    }
+    if (!ok) sent.delete(orderId); // allow a later retry if delivery failed
   } catch (err) {
     console.error("[telegram] notifyNewOrder failed:", err);
   }
