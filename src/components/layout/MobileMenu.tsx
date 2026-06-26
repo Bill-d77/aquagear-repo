@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Home, Store, LayoutGrid, MessageCircle, User, ShoppingCart } from "lucide-react";
@@ -16,7 +17,12 @@ interface MobileMenuProps {
 export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }: MobileMenuProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const prefersReduced = useReducedMotion();
+
+  // Portal target — the header has backdrop-blur, which would otherwise make
+  // `fixed` children position relative to it instead of the viewport.
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -69,8 +75,9 @@ export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }:
         <Menu size={24} />
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
+      {mounted && createPortal(
+        <AnimatePresence>
+          {isOpen && (
           <>
             <motion.div
               key="backdrop"
@@ -144,8 +151,10 @@ export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }:
               </nav>
             </motion.div>
           </>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }
