@@ -101,43 +101,40 @@ export default async function Shop({
   const isNew = (d: Date) => now - d.getTime() < 14 * 24 * 60 * 60 * 1000;
 
   return (
-    <div className="space-y-12 sm:space-y-16 py-6 sm:py-10">
+    <div className="space-y-8 sm:space-y-10 py-6 sm:py-8">
       {/* ───────── Hero ───────── */}
-      <section className="fade-up relative overflow-hidden rounded-3xl px-6 sm:px-10 py-10 sm:py-16 min-h-[360px] sm:min-h-[400px] flex items-end sm:items-center text-white">
+      <section className="fade-up relative overflow-hidden rounded-3xl px-6 sm:px-10 py-12 sm:py-14 min-h-[280px] sm:min-h-[340px] flex items-center text-white">
         <Image
           src="/product_hero.png"
-          alt="AquaGear marine and watersports equipment"
+          alt="Watersports athlete using AquaGear equipment"
           fill
           priority
           sizes="100vw"
           className="object-cover object-center"
         />
-        {/* Readability gradient: bottom-up on mobile, left-heavy on sm+ */}
-        <div className="absolute inset-0 bg-gradient-to-t from-blue-950/90 via-blue-950/55 to-blue-950/20 sm:bg-gradient-to-r sm:from-blue-950/85 sm:via-blue-950/50 sm:to-transparent" />
-        <div className="relative max-w-2xl space-y-4">
+        {/* Readability gradient: stronger at the bottom on mobile, left-heavy on sm+ */}
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-950/85 via-blue-950/55 to-blue-950/30 sm:bg-gradient-to-r sm:from-blue-950/85 sm:via-blue-950/50 sm:to-transparent" />
+        <div className="relative w-full max-w-2xl space-y-4 text-center sm:text-left">
           <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold tracking-tight">
-            Shop Marine Equipment
+            Premium Water Sports Equipment
           </h1>
-          <p className="text-white/85 text-base sm:text-lg">
-            Everything you need for boating, diving, paddleboarding, swimming, and outdoor
-            adventures — trusted by professionals across Lebanon.
+          <p className="text-white/85 text-base sm:text-lg mx-auto sm:mx-0 max-w-lg">
+            Pro-grade gear built for performance and durability — for paddleboarding, kayaking,
+            diving, swimming, and every adventure on the water.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 pt-1">
-            <a href="#products" className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-white px-6 py-3 font-semibold text-blue-800 hover:bg-sky-50 transition">
-              Browse Products
-            </a>
-            <a href="#categories" className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg border border-white/50 bg-white/10 backdrop-blur px-6 py-3 font-medium text-white hover:bg-white/20 transition">
-              Explore Categories
+          <div className="pt-1">
+            <a href="#products" className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-white px-7 py-3 font-semibold text-blue-800 shadow-sm hover:bg-sky-50 transition">
+              Shop Now
             </a>
           </div>
         </div>
       </section>
 
-      {/* ───────── Search + filter bar (sticky, native GET form — no client JS) ───────── */}
+      {/* ───────── Search + filter bar (static, native GET form — no client JS) ───────── */}
       <form
         method="get"
         action="/shop"
-        className="sticky top-20 z-30 rounded-3xl border bg-white/90 backdrop-blur shadow-lg p-4 sm:p-5 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
+        className="rounded-3xl border bg-white shadow-lg p-4 sm:p-5 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
       >
         <div className="relative">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
