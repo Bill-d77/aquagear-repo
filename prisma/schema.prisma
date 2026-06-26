@@ -74,8 +74,6 @@ model Order {
   trackingNumber   String?
   carrier          String?
   lastContactedAt  DateTime?
-  // Telegram notification: set when the admin alert is sent (idempotency + audit).
-  notifiedAt       DateTime?
 }
 
 model StoreSettings {
