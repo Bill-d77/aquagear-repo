@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ensureValidImageUrl } from "@/lib/images";
-import { CART_COOKIE_NAME, DELIVERY_FEE } from "@/lib/cart";
+import { CART_COOKIE_NAME, deliveryFeeFor } from "@/lib/cart";
 import { CheckoutForm } from "./CheckoutForm";
 
 export const dynamic = "force-dynamic";
@@ -43,5 +43,5 @@ export default async function Checkout() {
   }));
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  return <CheckoutForm items={lineItems} subtotal={subtotal} deliveryFee={DELIVERY_FEE} />;
+  return <CheckoutForm items={lineItems} subtotal={subtotal} deliveryFee={deliveryFeeFor(subtotal)} />;
 }

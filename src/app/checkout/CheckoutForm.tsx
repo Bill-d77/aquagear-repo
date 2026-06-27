@@ -18,6 +18,7 @@ import {
   Loader2,
   type LucideIcon,
 } from "lucide-react";
+import { DELIVERY_FEE, FREE_DELIVERY_THRESHOLD } from "@/lib/cart";
 import { submitOrder } from "./actions";
 
 interface LineItem {
@@ -163,7 +164,14 @@ export function CheckoutForm({ items, subtotal, deliveryFee }: CheckoutFormProps
           </div>
           <div className="flex justify-between text-slate-600">
             <span className="flex items-center gap-1.5"><Truck size={15} className="text-orange-500" /> Delivery Charge</span>
-            <span className="tabular-nums">{money(deliveryFee)}</span>
+            {deliveryFee === 0 ? (
+              <span className="flex items-center gap-2">
+                <span className="tabular-nums text-slate-400 line-through">{money(DELIVERY_FEE)}</span>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">FREE</span>
+              </span>
+            ) : (
+              <span className="tabular-nums">{money(deliveryFee)}</span>
+            )}
           </div>
           <div className="mt-2 flex items-center justify-between border-t pt-3">
             <span className="text-base font-semibold text-slate-900">Total</span>
@@ -177,7 +185,13 @@ export function CheckoutForm({ items, subtotal, deliveryFee }: CheckoutFormProps
         <Truck size={20} className="mt-0.5 shrink-0 text-sky-600" />
         <div className="text-sm">
           <p className="font-semibold text-slate-900">Fast Delivery Across Lebanon</p>
-          <p className="text-slate-600">Delivery fee: {money(deliveryFee)} · Estimated 1–3 business days</p>
+          {deliveryFee === 0 ? (
+            <p className="font-medium text-emerald-700">You&apos;ve unlocked free delivery! · Estimated 1–3 business days</p>
+          ) : (
+            <p className="text-slate-600">
+              Delivery fee: {money(deliveryFee)} · Add {money(FREE_DELIVERY_THRESHOLD - subtotal)} for free delivery · 1–3 business days
+            </p>
+          )}
         </div>
       </div>
 
