@@ -5,13 +5,14 @@ import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { CART_COOKIE_NAME } from "@/lib/cart";
+import { CART_COOKIE_NAME, DELIVERY_FEE } from "@/lib/cart";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
 
 const checkoutSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  location: z.string().min(1, "Location is required"),
+  city: z.string().min(1, "City is required"),
+  area: z.string().min(1, "Area is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
   apartment: z.string().optional(),
   paymentMode: z.enum(["COD"]),
@@ -27,7 +28,8 @@ export async function submitOrder(prevState: any, formData: FormData) {
 
   const rawData = {
     name: formData.get("name"),
-    location: formData.get("location"),
+    city: formData.get("city"),
+    area: formData.get("area"),
     phoneNumber: formData.get("phoneNumber"),
     apartment: formData.get("apartment"),
     paymentMode: formData.get("paymentMode"),
@@ -42,7 +44,8 @@ export async function submitOrder(prevState: any, formData: FormData) {
     };
   }
 
-  const { name, location, phoneNumber, apartment, paymentMode } = validatedFields.data;
+  const { name, city, area, phoneNumber, apartment, paymentMode } = validatedFields.data;
+  const location = `${city}, ${area}`;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -61,7 +64,8 @@ export async function submitOrder(prevState: any, formData: FormData) {
         }
       }
 
-      const total = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const total = subtotal + DELIVERY_FEE;
 
       await tx.order.update({
         where: { id: cartId },
@@ -108,5 +112,5 @@ export async function submitOrder(prevState: any, formData: FormData) {
     return { message: e instanceof Error ? e.message : "Failed to submit order" };
   }
 
-  redirect("/checkout/success");
+  redirect(`/checkout/success?order=${cartId}`);
 }
