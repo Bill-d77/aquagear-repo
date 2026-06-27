@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { CART_COOKIE_NAME, DELIVERY_FEE } from "@/lib/cart";
+import { CART_COOKIE_NAME, deliveryFeeFor } from "@/lib/cart";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
 
@@ -65,7 +65,7 @@ export async function submitOrder(prevState: any, formData: FormData) {
       }
 
       const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const total = subtotal + DELIVERY_FEE;
+      const total = subtotal + deliveryFeeFor(subtotal);
 
       await tx.order.update({
         where: { id: cartId },
