@@ -36,7 +36,8 @@ export function StorefrontShell({
         {children}
       </main>
       {footer}
-      {whatsapp}
+      {/* Hide the floating WhatsApp button on checkout — it would overlap the sticky Place Order bar. */}
+      {!pathname.startsWith("/checkout") && whatsapp}
     </>
   );
 }

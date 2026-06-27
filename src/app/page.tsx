@@ -12,7 +12,6 @@ import {
   LifeBuoy,
   Anchor,
   Package,
-  RotateCcw,
   CreditCard,
   MapPin,
   Award,
@@ -279,10 +278,9 @@ export default async function Home() {
       </section>
 
       {/* ───────── Benefits strip ───────── */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-6 border-t pt-10">
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 border-t pt-10">
         {[
-          { icon: Truck, title: "Free Delivery", desc: "On orders over $50" },
-          { icon: RotateCcw, title: "Easy Returns", desc: "30-day return policy" },
+          { icon: Truck, title: "Fast Delivery", desc: "Across Lebanon, 1–3 business days" },
           { icon: CreditCard, title: "Secure Payments", desc: "100% protected checkout" },
           { icon: MapPin, title: "Local Support", desc: "We're here to help" },
         ].map(({ icon: Icon, title, desc }) => (
