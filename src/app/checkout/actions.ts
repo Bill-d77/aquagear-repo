@@ -103,6 +103,17 @@ export async function submitOrder(prevState: any, formData: FormData) {
       maxAge: 0,
     });
 
+    // Short-lived proof-of-purchase: the success page only reveals order
+    // details (name/address) when this cookie matches the order id, so a
+    // shared/guessed URL can't leak another customer's PII.
+    cookieStore.set("justOrdered", cartId, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/checkout",
+      maxAge: 60 * 15,
+    });
+
     // Fire the Telegram admin alert after the response is sent — never delays
     // or breaks checkout. `cartId` is the order id (notifyNewOrder is non-throwing).
     after(() => notifyNewOrder(cartId));

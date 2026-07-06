@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { CheckCircle2, Package, MapPin, Banknote, Truck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
@@ -12,7 +13,12 @@ export default async function CheckoutSuccess({
   searchParams: Promise<{ order?: string }>;
 }) {
   const { order: orderId } = await searchParams;
-  const order = orderId
+  // Only reveal order details to the buyer: the justOrdered cookie is set by
+  // submitOrder and must match the id in the URL. Anyone else gets the
+  // generic confirmation with no PII.
+  const cookieStore = await cookies();
+  const isBuyer = !!orderId && cookieStore.get("justOrdered")?.value === orderId;
+  const order = isBuyer
     ? await prisma.order.findUnique({
         where: { id: orderId },
         select: { id: true, total: true, name: true, location: true, apartment: true, paymentMode: true },
