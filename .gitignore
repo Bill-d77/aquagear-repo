@@ -32,3 +32,6 @@ build/
 # Local DB
 *.db
 *.db-journal
+
+# Local security audit — do not publish (public repo)
+AUDIT_REPORT.md
