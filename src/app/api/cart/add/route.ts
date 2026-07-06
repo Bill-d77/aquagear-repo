@@ -2,10 +2,30 @@ export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { cartCookieOptions, CART_COOKIE_NAME, MAX_CART_QUANTITY } from "@/lib/cart";
+
+// ponytail: opportunistic cleanup instead of cron infra. On ~2% of add-to-cart
+// requests, purge abandoned guest carts (PENDING orders >30 days old) after the
+// response is sent. Move to a scheduled job if volume ever makes this matter.
+const STALE_CART_MS = 30 * 24 * 60 * 60 * 1000;
+
+function cleanupStaleCarts() {
+  after(async () => {
+    try {
+      const cutoff = new Date(Date.now() - STALE_CART_MS);
+      const stale = { status: "PENDING", createdAt: { lt: cutoff } } as const;
+      await prisma.orderItem.deleteMany({ where: { order: stale } });
+      await prisma.order.deleteMany({ where: stale });
+    } catch (e) {
+      console.error("stale cart cleanup failed:", e);
+    }
+  });
+}
 
 export async function POST(req: Request) {
   try {
+    if (Math.random() < 0.02) cleanupStaleCarts();
     const form = await req.formData();
     const productIdValue = form.get("productId");
     const productId = typeof productIdValue === "string" ? productIdValue : "";

@@ -6,7 +6,6 @@ import {
   MessageCircle,
   BadgeCheck,
   ArrowRight,
-  Heart,
   Star,
   Waves,
   LifeBuoy,
@@ -23,6 +22,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureValidImageUrl } from "@/lib/images";
 import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import PriceTag from "@/components/product/PriceTag";
+import { RatingStars } from "@/components/product/RatingStars";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -33,16 +33,7 @@ export const metadata: Metadata = {
     "Shop professional life jackets, diving gear, floats, waterproof bags, and marine safety essentials. Trusted by swimmers, divers, and boat crews across Lebanon.",
 };
 
-// ponytail: stats, badges, ratings, and hero/promo photos are placeholders —
-// the schema has no rating/badge/isFeatured fields. Swap for real data when added.
-const STATS = [
-  { icon: ShoppingBag, value: "500+", label: "Products" },
-  { icon: ShieldCheck, value: "10+", label: "Trusted Brands" },
-  { icon: Users, value: "1000+", label: "Happy Customers" },
-  { icon: Headphones, value: "24/7", label: "Support" },
-];
-
-const HERO_IMG = "/hero_section1.png";
+const HERO_IMG = "/hero_section1.jpg";
 const STATS_IMG = "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f?w=1600&q=60";
 const PROMO_IMG = "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1600&q=60";
 
@@ -54,28 +45,36 @@ function categoryIcon(name: string) {
   return Waves;
 }
 
-function Stars() {
-  return (
-    <div className="flex items-center gap-0.5 text-amber-400" aria-hidden="true">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star key={i} size={14} className="fill-current" />
-      ))}
-    </div>
-  );
-}
-
 export default async function Home() {
-  const [featured, categories] = await Promise.all([
+  const [featured, categories, productCount] = await Promise.all([
     prisma.product.findMany({
       where: { isArchived: false },
       orderBy: { createdAt: "desc" },
       take: 4,
-      select: { id: true, slug: true, imageUrl: true, name: true, description: true, price: true },
+      select: {
+        id: true,
+        slug: true,
+        imageUrl: true,
+        name: true,
+        description: true,
+        price: true,
+        createdAt: true,
+        reviews: { select: { rating: true } },
+      },
     }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
+    prisma.product.count({ where: { isArchived: false } }),
   ]);
 
-  const badges = ["BEST SELLER", "NEW", "SALE", "SALE"];
+  // Real numbers only — counts come from the DB, the rest are verifiable claims.
+  const stats = [
+    { icon: ShoppingBag, value: `${productCount}`, label: "Products" },
+    { icon: ShieldCheck, value: `${categories.length}`, label: "Categories" },
+    { icon: Users, value: "1–3 days", label: "Delivery in Lebanon" },
+    { icon: Headphones, value: "24/7", label: "WhatsApp Support" },
+  ];
+
+  const isNew = (d: Date) => Date.now() - d.getTime() < 14 * 24 * 60 * 60 * 1000;
 
   return (
     <div className="space-y-16 sm:space-y-24 py-6 sm:py-10">
@@ -195,7 +194,7 @@ export default async function Home() {
         <Image src={STATS_IMG} alt="" fill sizes="100vw" className="object-cover" />
         <div className="absolute inset-0 bg-blue-900/80" />
         <div className="relative grid grid-cols-2 md:grid-cols-4 gap-8 px-6 py-10 sm:py-12 text-white">
-          {STATS.map(({ icon: Icon, value, label }) => (
+          {stats.map(({ icon: Icon, value, label }) => (
             <div key={label} className="flex flex-col items-center text-center gap-1 md:border-r md:border-white/20 md:last:border-r-0">
               <Icon size={26} className="mb-1 opacity-90" />
               <span className="text-3xl sm:text-4xl font-extrabold">{value}</span>
@@ -215,19 +214,11 @@ export default async function Home() {
             </Link>
           </div>
           <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
-            {featured.map((p, i) => (
+            {featured.map((p) => (
               <div key={p.id} className="card group relative flex flex-col hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-                <span className="absolute top-3 left-3 z-10 rounded-full bg-sky-600 px-2.5 py-1 text-[10px] font-bold tracking-wide text-white">
-                  {badges[i] ?? "SALE"}
+                <span className={`absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white ${isNew(p.createdAt) ? "bg-emerald-500" : "bg-sky-600"}`}>
+                  {isNew(p.createdAt) ? "NEW" : "SALE"}
                 </span>
-                <button
-                  type="button"
-                  aria-label="Add to wishlist"
-                  className="absolute top-3 right-3 z-10 icon-action text-gray-500 hover:text-rose-500"
-                >
-                  {/* ponytail: decorative — no wishlist backend exists yet */}
-                  <Heart size={16} />
-                </button>
 
                 <Link href={`/product/${p.slug}`} className="block">
                   <div className="overflow-hidden rounded-xl bg-white mb-3">
@@ -243,9 +234,8 @@ export default async function Home() {
                   <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{p.description}</p>
                 </Link>
 
-                <div className="flex items-center gap-1.5 mt-2">
-                  <Stars />
-                  <span className="text-xs text-gray-400">(128)</span>
+                <div className="mt-2">
+                  <RatingStars ratings={p.reviews.map((r) => r.rating)} />
                 </div>
 
                 <PriceTag priceCents={p.price} />

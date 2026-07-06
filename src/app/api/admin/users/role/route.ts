@@ -16,6 +16,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
+  // Never demote the last admin — that would lock everyone out of /admin
+  // with no recovery short of direct DB access.
+  if (newRole.data !== "ADMIN") {
+    const otherAdmins = await prisma.user.count({
+      where: { role: "ADMIN", id: { not: id } },
+    });
+    if (otherAdmins === 0) {
+      return NextResponse.json(
+        { error: "Cannot demote the last admin" },
+        { status: 400 },
+      );
+    }
+  }
+
   await prisma.user.update({ where: { id }, data: { role: newRole.data } });
   return NextResponse.redirect(new URL("/admin/users", req.url));
 }

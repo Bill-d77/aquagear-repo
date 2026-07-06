@@ -80,7 +80,7 @@ model StoreSettings {
   id               String   @id @default("singleton")
   storeName        String   @default("AquaGear")
   whatsappNumber   String   @default("96171634379")
-  shippingFlatRate Int      @default(0) // cents
+  shippingFlatRate Int      @default(400) // cents; the delivery fee charged at checkout (0 = free shipping)
   businessHours    String   @default("Mon-Sat 9:00-18:00")
   updatedAt        DateTime @updatedAt
 }
@@ -104,4 +104,7 @@ model Review {
   rating    Int
   comment   String
   createdAt DateTime @default(now())
+
+  // One review per customer per product — updating replaces the old one.
+  @@unique([userId, productId])
 }

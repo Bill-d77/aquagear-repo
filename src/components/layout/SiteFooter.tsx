@@ -4,13 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Instagram, Facebook, MessageCircle, ArrowUp } from "lucide-react";
 
-interface Category {
-  id: string;
-  name: string;
-}
-
 interface SiteFooterProps {
-  categories: Category[]; // kept for API compatibility; minimal footer doesn't list them
   whatsappNumber: string;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,6 +19,7 @@ export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }:
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const prefersReduced = useReducedMotion();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Portal target — the header has backdrop-blur, which would otherwise make
   // `fixed` children position relative to it instead of the viewport.
@@ -31,6 +32,33 @@ export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }:
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, []);
+
+  // Focus trap: move focus into the dialog on open, keep Tab cycling inside it.
+  useEffect(() => {
+    if (!isOpen) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const focusables = () =>
+      panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+    focusables()[0]?.focus();
+
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const els = focusables();
+      if (els.length === 0) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", trap);
+    return () => document.removeEventListener("keydown", trap);
+  }, [isOpen]);
 
   // Lock body scroll while the drawer is open
   useEffect(() => {
@@ -92,6 +120,7 @@ export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }:
             {/* Right slide-in panel, full height */}
             <motion.div
               key="panel"
+              ref={panelRef}
               role="dialog"
               aria-modal="true"
               initial={{ x: "100%" }}

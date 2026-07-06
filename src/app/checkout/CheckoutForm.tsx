@@ -18,7 +18,7 @@ import {
   Loader2,
   type LucideIcon,
 } from "lucide-react";
-import { DELIVERY_FEE, FREE_DELIVERY_THRESHOLD } from "@/lib/cart";
+import { FREE_DELIVERY_THRESHOLD } from "@/lib/cart";
 import { submitOrder } from "./actions";
 
 interface LineItem {
@@ -32,7 +32,10 @@ interface LineItem {
 interface CheckoutFormProps {
   items: LineItem[];
   subtotal: number;
+  /** Fee actually charged for this order (0 when the free-delivery threshold is met). */
   deliveryFee: number;
+  /** Configured flat rate, shown struck-through when the fee is waived. */
+  baseFee: number;
 }
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -98,7 +101,7 @@ function PlaceOrderButton({ total }: { total: number }) {
   );
 }
 
-export function CheckoutForm({ items, subtotal, deliveryFee }: CheckoutFormProps) {
+export function CheckoutForm({ items, subtotal, deliveryFee, baseFee }: CheckoutFormProps) {
   const [state, formAction] = useActionState(submitOrder, initialState);
   const errors = state?.errors ?? {};
   const total = subtotal + deliveryFee;
@@ -166,7 +169,9 @@ export function CheckoutForm({ items, subtotal, deliveryFee }: CheckoutFormProps
             <span className="flex items-center gap-1.5"><Truck size={15} className="text-orange-500" /> Delivery Charge</span>
             {deliveryFee === 0 ? (
               <span className="flex items-center gap-2">
-                <span className="tabular-nums text-slate-400 line-through">{money(DELIVERY_FEE)}</span>
+                {baseFee > 0 && (
+                  <span className="tabular-nums text-slate-400 line-through">{money(baseFee)}</span>
+                )}
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">FREE</span>
               </span>
             ) : (
