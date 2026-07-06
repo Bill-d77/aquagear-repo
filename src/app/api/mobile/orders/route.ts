@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { deliveryFeeFor, MAX_CART_QUANTITY } from "@/lib/cart";
+import { getStoreSettings } from "@/lib/settings";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
 import { getMobileUser } from "@/lib/mobile";
@@ -50,6 +51,8 @@ export async function POST(req: Request) {
     const { items, name, city, area, phoneNumber, apartment, paymentMode } = parsed.data;
     const user = await getMobileUser(req);
 
+    const { shippingFlatRate } = await getStoreSettings();
+
     const orderId = await prisma.$transaction(async (tx) => {
       const products = await tx.product.findMany({
         where: { id: { in: items.map((i) => i.productId) }, isArchived: false },
@@ -76,7 +79,7 @@ export async function POST(req: Request) {
           paymentMode,
           status: PLACED_ORDER_STATUS,
           placedAt: new Date(),
-          total: subtotal + deliveryFeeFor(subtotal),
+          total: subtotal + deliveryFeeFor(subtotal, shippingFlatRate),
           items: {
             create: items.map((i) => ({
               productId: i.productId,

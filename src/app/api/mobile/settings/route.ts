@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DELIVERY_FEE, FREE_DELIVERY_THRESHOLD } from "@/lib/cart";
+import { FREE_DELIVERY_THRESHOLD } from "@/lib/cart";
 
 export async function GET() {
   try {
@@ -10,7 +10,7 @@ export async function GET() {
       storeName: settings?.storeName ?? "AquaGear",
       whatsappNumber: settings?.whatsappNumber ?? "96171634379",
       businessHours: settings?.businessHours ?? "Mon-Sat 9:00-18:00",
-      deliveryFee: DELIVERY_FEE,
+      deliveryFee: settings?.shippingFlatRate ?? 400,
       freeDeliveryThreshold: FREE_DELIVERY_THRESHOLD,
     });
   } catch (e) {

@@ -129,7 +129,12 @@ export async function notifyNewOrder(orderId: string): Promise<void> {
     sent.add(orderId);
 
     const subtotal = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const base = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? "";
+    // NEXTAUTH_URL is often unset with next-auth v5 on Vercel — fall back to the
+    // deployment's production domain so the dashboard link stays clickable.
+    const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "";
+    const base = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? vercelUrl;
 
     const text = buildOrderMessage({
       id: order.id,
@@ -142,7 +147,7 @@ export async function notifyNewOrder(orderId: string): Promise<void> {
       items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
       subtotal,
       discount: 0, // sale "old price" is display-only; the charged price has no real discount
-      shipping: 0, // no shipping model yet
+      shipping: Math.max(0, order.total - subtotal), // stored total already includes the delivery fee
       total: order.total,
       dashboardUrl: base ? `${base}/admin/orders/${order.id}` : `/admin/orders/${order.id}`,
     });

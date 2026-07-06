@@ -4,8 +4,6 @@ import Image from "next/image";
 import {
   PackageOpen,
   Search,
-  Heart,
-  Star,
   Waves,
   LifeBuoy,
   Anchor,
@@ -17,6 +15,7 @@ import {
 import { ensureValidImageUrl } from "@/lib/images";
 import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import PriceTag from "@/components/product/PriceTag";
+import { RatingStars } from "@/components/product/RatingStars";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
 
@@ -43,21 +42,6 @@ function categoryIcon(name: string) {
   if (n.includes("boat") || n.includes("dive") || n.includes("diving")) return Anchor;
   if (n.includes("bag") || n.includes("waterproof") || n.includes("cooler")) return Package;
   return Waves;
-}
-
-function Stars({ count }: { count: number }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex items-center gap-0.5 text-amber-400" aria-hidden="true">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star key={i} size={13} className="fill-current" />
-        ))}
-      </div>
-      <span className="text-xs text-gray-400">
-        {count > 0 ? `(${count})` : "No reviews yet"}
-      </span>
-    </div>
-  );
 }
 
 export default async function Shop({
@@ -88,7 +72,7 @@ export default async function Shop({
         price: true,
         stock: true,
         createdAt: true,
-        _count: { select: { reviews: true } },
+        reviews: { select: { rating: true } },
       },
     }),
     prisma.category.findMany({
@@ -105,7 +89,7 @@ export default async function Shop({
       {/* ───────── Hero ───────── */}
       <section className="fade-up relative overflow-hidden rounded-3xl px-6 sm:px-10 py-12 sm:py-14 min-h-[280px] sm:min-h-[340px] flex items-center text-white">
         <Image
-          src="/product_hero.png"
+          src="/product_hero.jpg"
           alt="Watersports athlete using AquaGear equipment"
           fill
           priority
@@ -226,11 +210,6 @@ export default async function Shop({
                 <span className={`absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white ${isNew(p.createdAt) ? "bg-emerald-500" : "bg-sky-600"}`}>
                   {isNew(p.createdAt) ? "NEW" : "SALE"}
                 </span>
-                {/* Wishlist — ponytail: decorative, no wishlist backend exists */}
-                <button type="button" aria-label="Add to wishlist" className="absolute top-3 right-3 z-10 icon-action text-gray-500 hover:text-rose-500">
-                  <Heart size={16} />
-                </button>
-
                 <Link href={`/product/${p.slug}`} className="block">
                   <div className="overflow-hidden rounded-xl bg-white mb-3">
                     <Image
@@ -244,7 +223,7 @@ export default async function Shop({
                   <h2 className="font-medium text-gray-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{p.name}</h2>
                 </Link>
 
-                <div className="mt-1.5"><Stars count={p._count.reviews} /></div>
+                <div className="mt-1.5"><RatingStars ratings={p.reviews.map((r) => r.rating)} /></div>
                 <PriceTag priceCents={p.price} />
 
                 {/* Stock / urgency */}

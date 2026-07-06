@@ -2,11 +2,17 @@
 import { SignJWT, jwtVerify } from "jose";
 import type { Prisma } from "@prisma/client";
 
-const secret = new TextEncoder().encode(
+const resolvedSecret =
   process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
-    (process.env.NODE_ENV === "development" ? "dev-secret-change-me" : "")
-);
+  process.env.NEXTAUTH_SECRET ||
+  (process.env.NODE_ENV !== "production" ? "dev-secret-change-me" : undefined);
+
+// Mirror lib/auth.ts: never mint tokens with a missing (empty) key in production.
+if (!resolvedSecret) {
+  throw new Error("AUTH_SECRET or NEXTAUTH_SECRET must be set in production");
+}
+
+const secret = new TextEncoder().encode(resolvedSecret);
 
 const AUDIENCE = "aquagear-mobile";
 
@@ -27,7 +33,12 @@ export async function signMobileToken(user: MobileUser): Promise<string> {
     .sign(secret);
 }
 
-/** Resolve the Bearer token on a request to a user, or null. */
+/**
+ * Resolve the Bearer token on a request to a user, or null.
+ *
+ * SECURITY: tokens live 90 days with no revocation, so the `role` claim can be
+ * stale. Never gate admin functionality on it — re-check the DB role instead.
+ */
 export async function getMobileUser(req: Request): Promise<MobileUser | null> {
   const header = req.headers.get("authorization") ?? "";
   if (!header.startsWith("Bearer ")) return null;

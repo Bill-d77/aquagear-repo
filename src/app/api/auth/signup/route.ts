@@ -8,7 +8,8 @@ import { rateLimit, getClientIp } from "@/lib/rate-limit";
 const schema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
-  password: z.string().min(6),
+  // max 72: bcrypt silently truncates beyond 72 bytes
+  password: z.string().min(8).max(72),
 });
 
 // 5 signup attempts per IP per 15 minutes.

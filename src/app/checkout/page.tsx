@@ -4,6 +4,7 @@ import { ShoppingBag } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ensureValidImageUrl } from "@/lib/images";
 import { CART_COOKIE_NAME, deliveryFeeFor } from "@/lib/cart";
+import { getStoreSettings } from "@/lib/settings";
 import { CheckoutForm } from "./CheckoutForm";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,14 @@ export default async function Checkout() {
     price: i.price,
   }));
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const { shippingFlatRate } = await getStoreSettings();
 
-  return <CheckoutForm items={lineItems} subtotal={subtotal} deliveryFee={deliveryFeeFor(subtotal)} />;
+  return (
+    <CheckoutForm
+      items={lineItems}
+      subtotal={subtotal}
+      deliveryFee={deliveryFeeFor(subtotal, shippingFlatRate)}
+      baseFee={shippingFlatRate}
+    />
+  );
 }

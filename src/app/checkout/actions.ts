@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CART_COOKIE_NAME, deliveryFeeFor } from "@/lib/cart";
+import { getStoreSettings } from "@/lib/settings";
+import { auth } from "@/lib/auth";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
 
@@ -46,6 +48,9 @@ export async function submitOrder(prevState: any, formData: FormData) {
 
   const { name, city, area, phoneNumber, apartment, paymentMode } = validatedFields.data;
   const location = `${city}, ${area}`;
+  // Attach the order to the signed-in customer so it shows in their account history.
+  const session = await auth();
+  const userId = session?.user?.id || undefined;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -65,17 +70,20 @@ export async function submitOrder(prevState: any, formData: FormData) {
       }
 
       const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const total = subtotal + deliveryFeeFor(subtotal);
+      const { shippingFlatRate } = await getStoreSettings();
+      const total = subtotal + deliveryFeeFor(subtotal, shippingFlatRate);
 
       await tx.order.update({
         where: { id: cartId },
         data: {
+          userId,
           name,
           location,
           phoneNumber,
           apartment,
           paymentMode,
           status: PLACED_ORDER_STATUS,
+          placedAt: new Date(),
           total,
         },
       });
