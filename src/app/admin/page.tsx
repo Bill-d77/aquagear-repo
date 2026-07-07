@@ -22,9 +22,6 @@ async function getDashboardData() {
 
   const [
     productCount,
-    orderCountAllTime,
-    userCount,
-    revenueAllTime,
     revenueThis30,
     revenuePrev30,
     ordersThis30,
@@ -37,9 +34,6 @@ async function getDashboardData() {
     revenueByDay,
   ] = await Promise.all([
     prisma.product.count({ where: { isArchived: false } }),
-    prisma.order.count(),
-    prisma.user.count(),
-    prisma.order.aggregate({ _sum: { total: true }, where: { status: { in: [...REVENUE_STATUSES] } } }),
     prisma.order.aggregate({
       _sum: { total: true },
       where: { status: { in: [...REVENUE_STATUSES] }, createdAt: { gte: thirtyDaysAgo } },
@@ -48,13 +42,16 @@ async function getDashboardData() {
       _sum: { total: true },
       where: { status: { in: [...REVENUE_STATUSES] }, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
     }),
-    prisma.order.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-    prisma.order.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    // PENDING rows are live/abandoned carts, not orders — exclude them from
+    // order counts and recents (revenue above already filters).
+    prisma.order.count({ where: { status: { not: "PENDING" }, createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.order.count({ where: { status: { not: "PENDING" }, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
     prisma.product.count({ where: { isArchived: false, stock: { lt: LOW_STOCK_THRESHOLD } } }),
     prisma.order.count({ where: { status: "PLACED", placedAt: { lt: stuckCutoff } } }),
     prisma.order.findMany({
+      where: { status: { not: "PENDING" } },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, name: true, total: true, status: true, createdAt: true },
@@ -82,9 +79,6 @@ async function getDashboardData() {
 
   return {
     productCount,
-    orderCountAllTime,
-    userCount,
-    revenueAllTime: revenueAllTime._sum.total || 0,
     revenueThis30: revenueThis30._sum.total || 0,
     revenuePrev30: revenuePrev30._sum.total || 0,
     ordersThis30,

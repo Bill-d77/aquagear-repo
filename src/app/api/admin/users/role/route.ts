@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/admin";
+import { requireAdminApi, redirectWithError } from "@/lib/admin";
 import { roleSchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
@@ -23,10 +23,7 @@ export async function POST(req: Request) {
       where: { role: "ADMIN", id: { not: id } },
     });
     if (otherAdmins === 0) {
-      return NextResponse.json(
-        { error: "Cannot demote the last admin" },
-        { status: 400 },
-      );
+      return redirectWithError(req, "/admin/users", "Cannot demote the last admin — promote someone else first.");
     }
   }
 

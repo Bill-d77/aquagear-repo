@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/admin";
+import { requireAdminApi, redirectWithError } from "@/lib/admin";
 
 export async function POST(req: Request) {
   const guard = await requireAdminApi();
@@ -20,9 +20,10 @@ export async function POST(req: Request) {
     if (code === "P2003") {
       // FK violation — products still reference this category.
       // We don't soft-archive categories; surface a clear error.
-      return NextResponse.json(
-        { error: "Can't delete: products still reference this category. Move them to another category first." },
-        { status: 409 },
+      return redirectWithError(
+        req,
+        "/admin/categories",
+        "Can't delete: products still reference this category. Move them to another category first.",
       );
     }
     throw e;

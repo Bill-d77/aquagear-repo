@@ -24,8 +24,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: `Order ${id.slice(0, 8).toUpperCase()} · AquaGear Admin` };
 }
 
-export default async function AdminOrderDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminOrderDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error } = await searchParams;
   const [order, settings] = await Promise.all([
     prisma.order.findUnique({
       where: { id },
@@ -60,6 +67,11 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
       <div>
         <Link href="/admin/orders" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
           <ArrowLeft className="w-4 h-4" />
