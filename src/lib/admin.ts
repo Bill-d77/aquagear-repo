@@ -43,3 +43,15 @@ export async function requireAdminApi(): Promise<Session | NextResponse> {
 
 /** Threshold below which a product is considered low stock. */
 export const LOW_STOCK_THRESHOLD = 5;
+
+/**
+ * Redirect back to an admin page with a human-readable ?error= message.
+ * Use for failures an admin can actually hit from the plain-HTML forms —
+ * a raw JSON error page loses their context. Tamper-only paths (hidden-field
+ * manipulation) can keep returning JSON.
+ */
+export function redirectWithError(req: Request, path: string, message: string): NextResponse {
+  const url = new URL(path, req.url);
+  url.searchParams.set("error", message);
+  return NextResponse.redirect(url);
+}

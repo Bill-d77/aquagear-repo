@@ -18,7 +18,9 @@ const FILTER_OPTIONS = [
   ...ORDER_STATUSES.map((s) => ({ value: s, label: s })),
 ] as const;
 
-type SearchParams = Promise<{ status?: string; q?: string; from?: string; to?: string }>;
+type SearchParams = Promise<{ status?: string; q?: string; from?: string; to?: string; page?: string; error?: string }>;
+
+const PAGE_SIZE = 25;
 
 export default async function AdminOrders({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
@@ -26,6 +28,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
   const q = (sp.q || "").trim();
   const from = sp.from ? new Date(sp.from) : null;
   const to = sp.to ? new Date(sp.to) : null;
+  const page = Math.max(1, parseInt(sp.page || "1", 10) || 1);
 
   const where: Prisma.OrderWhereInput = {};
   if (statusFilter === "OPEN") {
@@ -47,19 +50,43 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
     };
   }
 
-  const orders = await prisma.order.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: { items: { include: { product: true } }, user: true },
-    take: 100,
-  });
+  const [orders, totalCount] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: { items: { include: { product: true } }, user: true },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.order.count({ where }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  // Prev/next links keep the active filters, only swapping the page number.
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (sp.status) params.set("status", sp.status);
+    if (q) params.set("q", q);
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
+    params.set("page", String(p));
+    return `/admin/orders?${params.toString()}`;
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900">Orders</h1>
-        <span className="text-sm text-gray-500">Showing {orders.length} {orders.length === 1 ? "order" : "orders"}</span>
+        <span className="text-sm text-gray-500">
+          {totalCount} {totalCount === 1 ? "order" : "orders"} · page {page} of {totalPages}
+        </span>
       </div>
+
+      {sp.error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {sp.error}
+        </div>
+      )}
 
       {/* Filter bar */}
       <form className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid gap-3 md:grid-cols-5">
@@ -207,6 +234,22 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 pt-2">
+          {page > 1 ? (
+            <Link href={pageHref(page - 1)} className="btn-outline text-sm">← Previous</Link>
+          ) : (
+            <span className="btn-outline text-sm opacity-40 pointer-events-none">← Previous</span>
+          )}
+          <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
+          {page < totalPages ? (
+            <Link href={pageHref(page + 1)} className="btn-outline text-sm">Next →</Link>
+          ) : (
+            <span className="btn-outline text-sm opacity-40 pointer-events-none">Next →</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

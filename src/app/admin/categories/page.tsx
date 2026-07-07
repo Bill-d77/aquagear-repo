@@ -8,7 +8,12 @@ export const metadata: Metadata = {
   title: "Categories · AquaGear Admin",
 };
 
-export default async function AdminCategories() {
+export default async function AdminCategories({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { products: true } } },
@@ -19,6 +24,12 @@ export default async function AdminCategories() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900">Categories</h1>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Create */}
       <form

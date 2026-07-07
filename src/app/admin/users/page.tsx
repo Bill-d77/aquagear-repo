@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { User as UserIcon, Mail, ShoppingBag, DollarSign } from "lucide-react";
+import { RoleForm } from "@/components/admin/RoleForm";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +11,17 @@ export const metadata: Metadata = {
 
 const REVENUE_STATUSES = ["PLACED", "SHIPPED"];
 
-export default async function AdminUsers() {
+export default async function AdminUsers({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   // Auth handled by /admin layout
+  // ponytail: take 200 bounds the page; add search/pagination when the list outgrows it.
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
+    take: 200,
     include: {
       orders: {
         select: { total: true, status: true, createdAt: true },
@@ -25,8 +33,14 @@ export default async function AdminUsers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900">Customers</h1>
-        <span className="text-sm text-gray-500">{users.length} total</span>
+        <span className="text-sm text-gray-500">{users.length} shown</span>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {users.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
@@ -73,16 +87,7 @@ export default async function AdminUsers() {
                     {lastOrder ? `Last ${new Date(lastOrder).toLocaleDateString()}` : "No orders"}
                   </div>
                 </div>
-                <form action="/api/admin/users/role" method="post" className="flex items-center gap-2 shrink-0">
-                  <input type="hidden" name="id" value={u.id} />
-                  <select name="role" defaultValue={u.role} className="text-sm border border-gray-300 rounded-md px-2 py-1">
-                    <option value="USER">USER</option>
-                    <option value="ADMIN">ADMIN</option>
-                  </select>
-                  <button className="text-xs px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50 transition-colors">
-                    Update
-                  </button>
-                </form>
+                <RoleForm userId={u.id} currentRole={u.role} />
               </div>
             );
           })}
