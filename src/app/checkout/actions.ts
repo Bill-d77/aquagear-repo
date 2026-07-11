@@ -10,6 +10,7 @@ import { getStoreSettings } from "@/lib/settings";
 import { auth } from "@/lib/auth";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
+import { notifyAdminApps } from "@/lib/apns";
 
 const checkoutSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -122,9 +123,12 @@ export async function submitOrder(prevState: any, formData: FormData) {
       maxAge: 60 * 15,
     });
 
-    // Fire the Telegram admin alert after the response is sent — never delays
-    // or breaks checkout. `cartId` is the order id (notifyNewOrder is non-throwing).
-    after(() => notifyNewOrder(cartId));
+    // Fire the admin alerts (Telegram + APNs) after the response is sent — never
+    // delays or breaks checkout. `cartId` is the order id (both are non-throwing).
+    after(() => {
+      void notifyNewOrder(cartId);
+      void notifyAdminApps(cartId);
+    });
 
   } catch (e) {
     console.error(e);
