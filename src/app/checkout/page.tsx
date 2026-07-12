@@ -6,8 +6,14 @@ import { ensureValidImageUrl } from "@/lib/images";
 import { CART_COOKIE_NAME, deliveryFeeFor } from "@/lib/cart";
 import { getStoreSettings } from "@/lib/settings";
 import { CheckoutForm } from "./CheckoutForm";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Checkout",
+  robots: { index: false, follow: false },
+};
 
 export default async function Checkout() {
   const cookieStore = await cookies();
