@@ -7,6 +7,7 @@ import { deliveryFeeFor, MAX_CART_QUANTITY } from "@/lib/cart";
 import { getStoreSettings } from "@/lib/settings";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
+import { notifyAdminApps } from "@/lib/apns";
 import { getMobileUser } from "@/lib/mobile";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
@@ -103,7 +104,10 @@ export async function POST(req: Request) {
       return order.id;
     });
 
-    after(() => notifyNewOrder(orderId));
+    after(() => {
+      void notifyNewOrder(orderId);
+      void notifyAdminApps(orderId); // APNs push to the admin apps
+    });
 
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     return NextResponse.json({
