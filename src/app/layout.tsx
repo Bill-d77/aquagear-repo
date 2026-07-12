@@ -15,6 +15,7 @@ import { CART_COOKIE_NAME } from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
 import { JsonLd } from "@/components/JsonLd";
 import { organizationSchema, websiteSchema } from "@/lib/seo";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -96,6 +97,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </StorefrontShell>
           <Toaster position="bottom-right" richColors />
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
