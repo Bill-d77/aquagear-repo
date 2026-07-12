@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Instagram, Facebook, MessageCircle, ArrowUp } from "lucide-react";
+import { openCookieSettings } from "@/components/cookies/ConsentProvider";
 
 interface SiteFooterProps {
   whatsappNumber: string;
@@ -47,6 +48,14 @@ export function SiteFooter({ whatsappNumber }: SiteFooterProps) {
             <Link href="/shop" className="hover:text-sky-700 transition-colors">Shop</Link>
             <Link href="/account" className="hover:text-sky-700 transition-colors">Account</Link>
             <a href={wa} target="_blank" rel="noopener noreferrer" className="hover:text-sky-700 transition-colors">Contact</a>
+            <Link href="/cookie-policy" className="hover:text-sky-700 transition-colors">Cookie Policy</Link>
+            <button
+              type="button"
+              onClick={openCookieSettings}
+              className="hover:text-sky-700 transition-colors"
+            >
+              Cookie Settings
+            </button>
           </nav>
 
           {/* Social */}
