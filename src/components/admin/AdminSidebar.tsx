@@ -13,6 +13,7 @@ import {
   Settings,
   LogOut,
   Tag,
+  Cookie,
   Menu,
   X,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/admin/products",   label: "Products",  icon: Package },
   { href: "/admin/categories", label: "Categories",icon: Tag },
   { href: "/admin/users",      label: "Customers", icon: Users },
+  { href: "/admin/cookies",    label: "Cookies",   icon: Cookie },
   { href: "/admin/settings",   label: "Settings",  icon: Settings },
 ];
 
