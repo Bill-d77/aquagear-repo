@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import { ProductNameSlug } from "@/components/admin/ProductNameSlug";
+import { MerchantFields } from "@/components/admin/MerchantFields";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function NewProductPage() {
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}
       </select>
+      <MerchantFields />
       <button className="btn-primary">Create</button>
     </form>
   );

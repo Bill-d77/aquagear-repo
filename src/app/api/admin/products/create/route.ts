@@ -29,6 +29,11 @@ export async function POST(req: Request) {
       imageUrls: rawImageUrls,
       stock: form.get("stock"),
       categoryId: form.get("categoryId"),
+      brand: form.get("brand"),
+      gtin: form.get("gtin"),
+      mpn: form.get("mpn"),
+      condition: form.get("condition") ?? "new",
+      googleProductCategory: form.get("googleProductCategory"),
     });
 
     if (!parsed.success) {

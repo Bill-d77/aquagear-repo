@@ -16,6 +16,12 @@ export const productFormSchema = z.object({
   imageUrls: z.array(z.string().trim().min(1)).min(1, "At least one image is required"),
   stock: z.coerce.number().int().nonnegative().max(1_000_000),
   categoryId: z.string().trim().min(1),
+  // Google Merchant Center — all optional. Empty strings coerce to undefined.
+  brand: z.string().trim().max(70).optional().or(z.literal("").transform(() => undefined)),
+  gtin: z.string().trim().max(14).regex(/^[0-9]*$/, "GTIN is digits only").optional().or(z.literal("").transform(() => undefined)),
+  mpn: z.string().trim().max(70).optional().or(z.literal("").transform(() => undefined)),
+  condition: z.enum(["new", "refurbished", "used"]).default("new"),
+  googleProductCategory: z.string().trim().max(120).optional().or(z.literal("").transform(() => undefined)),
 });
 
 export const productUpdateFormSchema = productFormSchema.extend({

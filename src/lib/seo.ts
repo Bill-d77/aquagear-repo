@@ -74,6 +74,9 @@ export interface ProductSchemaInput {
   categoryName: string;
   /** Stable identifier — the DB id doubles as a SKU. */
   sku: string;
+  brand?: string | null;
+  gtin?: string | null;
+  mpn?: string | null;
   /** Real aggregate; omit the block entirely when there are no reviews. */
   ratingAverage?: number;
   ratingCount?: number;
@@ -93,7 +96,9 @@ export function productSchema(p: ProductSchemaInput) {
     description: p.description,
     sku: p.sku,
     category: p.categoryName,
-    brand: { "@type": "Brand", name: "AquaGear" },
+    brand: { "@type": "Brand", name: p.brand || "AquaGear" },
+    ...(p.gtin ? { gtin: p.gtin } : {}),
+    ...(p.mpn ? { mpn: p.mpn } : {}),
     image: p.images.map(abs),
     offers: {
       "@type": "Offer",

@@ -24,7 +24,7 @@
 
 | Requirement | Why it's blocked | To unblock |
 |---|---|---|
-| Google Merchant Center product feed | Schema has no `brand`, `GTIN`, `MPN`, `color`, `material`, `size`, `gender`, `ageGroup`. GTINs cannot be invented. | Add those columns to `Product` + populate real values, then generate a feed. |
+| ~~Google Merchant Center product feed~~ | ✅ **Done** — `Product` now has optional `brand`/`gtin`/`mpn`/`condition`/`googleProductCategory` (admin-editable), and `/feed/google` emits an RSS 2.0 Merchant feed for every product. Products without a GTIN/brand ship with `identifier_exists=no`. Enter identifiers in the admin product form to strengthen listings. | — |
 | Fake "sale" in Offer markup | The "$5 off" old price is display-only marketing, not a real discount. Emitting it as `salePrice`/`priceValidUntil` would be deceptive-pricing markup (policy violation). | Decide whether the sale is real; if real, store the true original price. |
 | Per-product long description / specs / FAQ / buying guide | Model has one `description` field. Auto-generating specs/FAQs for real physical products would be fabrication. | Add fields + write real copy (or an admin content editor). |
 | Blog | No blog system exists. Writing articles about products the store actually sells needs real product/domain knowledge. | Build a `Post` model + editor, then commission content. |

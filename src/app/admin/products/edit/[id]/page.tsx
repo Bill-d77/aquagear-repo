@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import { ProductNameSlug } from "@/components/admin/ProductNameSlug";
 import { DeleteProductButton } from "@/components/admin/DeleteProductButton";
+import { MerchantFields } from "@/components/admin/MerchantFields";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,15 @@ export default async function AdminEditProduct({ params }: { params: Promise<{ i
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}
       </select>
+      <MerchantFields
+        defaults={{
+          brand: product.brand,
+          gtin: product.gtin,
+          mpn: product.mpn,
+          condition: product.condition,
+          googleProductCategory: product.googleProductCategory,
+        }}
+      />
       <div className="flex justify-between items-center">
         <button className="btn-primary">Save</button>
         <DeleteProductButton id={product.id} />
