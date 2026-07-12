@@ -5,7 +5,7 @@ WHERE a."userId" = b."userId"
   AND a."productId" = b."productId"
   AND (a."createdAt" < b."createdAt" OR (a."createdAt" = b."createdAt" AND a."id" < b."id"));
 
-CREATE UNIQUE INDEX "Review_userId_productId_key" ON "Review"("userId", "productId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Review_userId_productId_key" ON "Review"("userId", "productId");
 
 -- Delivery fee becomes settings-driven. The live store charges $4 today, so
 -- promote the untouched default (0) to 400 to preserve current behavior.
