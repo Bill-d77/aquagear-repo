@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import { Providers } from "./providers";
+import { ConsentProvider } from "@/components/cookies/ConsentProvider";
 import { auth } from "@/lib/auth";
 import { Toaster } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -88,14 +89,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-screen bg-gradient-to-b from-sky-50 to-white text-gray-900">
         <JsonLd data={[organizationSchema(settings.storeName), websiteSchema(settings.storeName)]} />
         <Providers>
-          <StorefrontShell
-            header={header}
-            footer={footer}
-            whatsapp={<WhatsAppButton number={settings.whatsappNumber} />}
-          >
-            {children}
-          </StorefrontShell>
-          <Toaster position="bottom-right" richColors />
+          <ConsentProvider>
+            <StorefrontShell
+              header={header}
+              footer={footer}
+              whatsapp={<WhatsAppButton number={settings.whatsappNumber} />}
+            >
+              {children}
+            </StorefrontShell>
+            <Toaster position="bottom-right" richColors />
+          </ConsentProvider>
         </Providers>
         <Analytics />
       </body>

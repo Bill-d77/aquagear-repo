@@ -116,3 +116,22 @@ model Review {
   // One review per customer per product — updating replaces the old one.
   @@unique([userId, productId])
 }
+
+// Immutable audit trail of cookie-consent decisions (GDPR/ePrivacy Art. 7(1)).
+// One row per accept/reject/change; never updated or deleted. userId is optional
+// so guest consents are logged against the anonymous browser id.
+model CookieConsent {
+  id         String   @id @default(cuid())
+  anonId     String
+  userId     String?
+  version    Int
+  functional Boolean
+  analytics  Boolean
+  marketing  Boolean
+  country    String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([anonId])
+  @@index([createdAt])
+}
