@@ -23,8 +23,9 @@ Marine, watersports, and beach equipment storefront for Lebanon.
 ## Production notes
 - Target deployment is Vercel; database is Neon Postgres (set the Prisma provider accordingly).
 - Required env vars: `DATABASE_URL`, `AUTH_SECRET`, `UPLOADTHING_TOKEN`. Optional: `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (order alerts), `SITE_URL` (canonical URLs).
-- Do not run seed or schema push during deployments. Back up or branch Neon first, then run migrations explicitly (`npx prisma migrate deploy`).
-- Vercel builds run Prisma client generation and Next.js build only.
+- Vercel builds run `prisma generate && prisma migrate deploy && next build`, so committed migrations are applied to the database automatically on deploy. `migrate deploy` only applies pending, already-committed migrations — it never resets data or runs `db push`.
+- Never run `prisma db push` or `npm run seed` against production. Back up or branch Neon before shipping a migration you're unsure about.
+- If a build fails on `migrate deploy` (e.g. the DB's migration history is out of sync), run `npx prisma migrate deploy` manually against production once to reconcile, then redeploy.
 
 ## Tests
 `node --test src/lib/telegram.test.ts`
