@@ -34,6 +34,14 @@ model Product {
   reviews     Review[]
   orderItems  OrderItem[]
   images      ProductImage[]
+
+  // Google Merchant Center identifiers (optional; admin-entered). When brand +
+  // gtin/mpn are absent the feed marks identifier_exists=no, which Google allows.
+  brand                 String?
+  gtin                  String?
+  mpn                   String?
+  condition             String  @default("new") // new | refurbished | used
+  googleProductCategory String?
 }
 
 model ProductImage {

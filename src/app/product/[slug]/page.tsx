@@ -76,6 +76,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       images: [...new Set(gallery)],
       categoryName: product.category.name,
       sku: product.id,
+      brand: product.brand,
+      gtin: product.gtin,
+      mpn: product.mpn,
       ratingAverage: ratingAgg?._avg.rating ?? undefined,
       ratingCount: product._count.reviews,
       reviews: product.reviews.map((r) => ({
