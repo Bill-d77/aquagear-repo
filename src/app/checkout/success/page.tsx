@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Order Confirmed",
+  robots: { index: false, follow: false },
+};
+
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 export default async function CheckoutSuccess({

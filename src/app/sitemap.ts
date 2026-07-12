@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const products = await prisma.product.findMany({
     where: { isArchived: false },
-    select: { slug: true, createdAt: true },
+    select: { slug: true, updatedAt: true },
   });
 
   return [
@@ -16,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/shop`, changeFrequency: "daily", priority: 0.9 },
     ...products.map((p) => ({
       url: `${SITE_URL}/product/${p.slug}`,
-      lastModified: p.createdAt,
+      lastModified: p.updatedAt,
       changeFrequency: "weekly" as const,
       priority: 0.7,
     })),

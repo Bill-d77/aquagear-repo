@@ -12,7 +12,8 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Cart · AquaGear",
+  title: "Cart",
+  robots: { index: false, follow: true },
 };
 
 export default async function CartPage() {

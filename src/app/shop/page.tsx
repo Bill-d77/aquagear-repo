@@ -16,14 +16,19 @@ import { ensureValidImageUrl } from "@/lib/images";
 import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import PriceTag from "@/components/product/PriceTag";
 import { RatingStars } from "@/components/product/RatingStars";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbSchema } from "@/lib/seo";
+import { SITE_URL } from "@/lib/site";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Shop · AquaGear",
-  description: "Browse premium marine, diving, boating, and beach equipment available in Lebanon.",
+  title: "Shop Marine & Water Sports Equipment",
+  description: "Browse premium marine, diving, boating, and beach equipment available in Lebanon. Fast delivery, secure checkout.",
+  // Consolidate all faceted views (?category, ?q, ?sort) to one canonical URL.
+  alternates: { canonical: "/shop" },
 };
 
 // ponytail: Best Selling needs order data; rating values, brand/color/size filters
@@ -86,6 +91,15 @@ export default async function Shop({
 
   return (
     <div className="space-y-8 sm:space-y-10 py-6 sm:py-8">
+      <JsonLd
+        data={[
+          { "@context": "https://schema.org", "@type": "CollectionPage", name: "Shop · AquaGear", url: `${SITE_URL}/shop` },
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Shop", path: "/shop" },
+          ]),
+        ]}
+      />
       {/* ───────── Hero ───────── */}
       <section className="fade-up relative overflow-hidden rounded-3xl px-6 sm:px-10 py-12 sm:py-14 min-h-[280px] sm:min-h-[340px] flex items-center text-white">
         <Image
