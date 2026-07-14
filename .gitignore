@@ -35,3 +35,7 @@ build/
 
 # Local security audit — do not publish (public repo)
 AUDIT_REPORT.md
+
+# Vercel-linked local env (OIDC token)
+.env.local
+.vercel
