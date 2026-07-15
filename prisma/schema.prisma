@@ -129,6 +129,7 @@ model PageView {
   country   String?
   device    String? // desktop | mobile | tablet
   browser   String? // coarse family
+  os        String? // coarse family (iOS, Android, Windows, macOS, Linux)
   referrer  String? // external host only
   // Campaign attribution, captured from the landing URL's utm_* params.
   utmSource   String?

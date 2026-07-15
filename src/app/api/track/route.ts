@@ -5,7 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { parseConsent, CONSENT_COOKIE, ANON_ID_COOKIE } from "@/lib/cookies";
-import { parseDevice, parseBrowser, externalReferrerHost, isTrackablePath, parseUtm } from "@/lib/track";
+import { parseDevice, parseBrowser, parseOs, externalReferrerHost, isTrackablePath, parseUtm } from "@/lib/track";
 
 const schema = z.object({
   path: z.string().min(1).max(200),
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
         country: req.headers.get("x-vercel-ip-country"),
         device: parseDevice(ua),
         browser: parseBrowser(ua),
+        os: parseOs(ua),
         referrer: externalReferrerHost(parsed.data.referrer, ownHost),
         ...parseUtm(parsed.data.search),
       },

@@ -4,6 +4,7 @@
 // here because there is no event pipeline; that data lives in Vercel Web
 // Analytics (pageviews/devices/geo) or would need an events table to build.
 import { prisma } from "@/lib/prisma";
+import { routePattern } from "@/lib/track";
 
 export type RangeKey = "today" | "7d" | "30d" | "90d" | "ytd";
 
@@ -31,7 +32,7 @@ export function rangeStart(key: RangeKey, now = new Date()): Date {
 
 /** Top-N counts for one PageView column within a range. */
 async function topBy(
-  field: "path" | "country" | "device" | "browser" | "referrer" | "utmSource" | "utmCampaign",
+  field: "path" | "country" | "device" | "browser" | "os" | "referrer" | "utmSource" | "utmMedium" | "utmCampaign",
   start: Date,
   take = 8,
 ) {
@@ -53,7 +54,7 @@ async function topBy(
 export async function getTraffic(range: RangeKey) {
   const start = rangeStart(range);
   const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
-  const [activeNow, pageviews, visitors, topPages, countries, devices, browsers, referrers, sources, campaigns] = await Promise.all([
+  const [activeNow, pageviews, visitors, topPages, countries, devices, browsers, oses, referrers, sources, mediums, campaigns, pathRows, viewRows] = await Promise.all([
     // "Active now": distinct consented visitors seen in the last 5 minutes.
     prisma.pageView.findMany({
       where: { createdAt: { gte: fiveMinAgo }, anonId: { not: null } },
@@ -70,11 +71,52 @@ export async function getTraffic(range: RangeKey) {
     topBy("country", start),
     topBy("device", start),
     topBy("browser", start),
+    topBy("os", start),
     topBy("referrer", start),
     topBy("utmSource", start),
+    topBy("utmMedium", start),
     topBy("utmCampaign", start),
+    // All path groups (bounded) — rolled up into route patterns below.
+    prisma.pageView.groupBy({
+      by: ["path"],
+      where: { createdAt: { gte: start } },
+      _count: { _all: true },
+      orderBy: { _count: { path: "desc" } },
+      take: 500,
+    }),
+    // Timestamps for the daily pageview chart.
+    prisma.pageView.findMany({
+      where: { createdAt: { gte: start } },
+      select: { createdAt: true },
+      take: 50_000,
+    }),
   ]);
-  return { activeNow, pageviews, visitors, topPages, countries, devices, browsers, referrers, sources, campaigns };
+
+  // Routes: collapse dynamic paths (e.g. every /product/x) into one pattern.
+  const routeMap = new Map<string, number>();
+  for (const r of pathRows) {
+    const key = routePattern(r.path);
+    routeMap.set(key, (routeMap.get(key) ?? 0) + r._count._all);
+  }
+  const routes = [...routeMap.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  // Daily pageview buckets (same shape as the revenue chart).
+  const now = Date.now();
+  const dayCount = Math.max(1, Math.ceil((now - start.getTime()) / 86400000));
+  const daily = new Map<string, number>();
+  for (let i = 0; i < dayCount; i++) {
+    daily.set(new Date(now - i * 86400000).toISOString().slice(0, 10), 0);
+  }
+  for (const v of viewRows) {
+    const k = v.createdAt.toISOString().slice(0, 10);
+    if (daily.has(k)) daily.set(k, (daily.get(k) ?? 0) + 1);
+  }
+  const chart = [...daily.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => ({ date, count }));
+
+  return { activeNow, pageviews, visitors, topPages, countries, devices, browsers, oses, referrers, sources, mediums, campaigns, routes, chart };
 }
 
 export async function getAnalytics(range: RangeKey) {
