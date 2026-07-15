@@ -39,7 +39,9 @@ async function topBy(
     by: [field],
     where: { createdAt: { gte: start }, [field]: { not: null } },
     _count: { _all: true },
-    orderBy: { _count: { id: "desc" } },
+    // Order by the grouped field's count — aggregate orderBy may only reference
+    // fields present in `by` (ordering by `id` here throws at runtime).
+    orderBy: { _count: { [field]: "desc" } },
     take,
   });
   return rows.map((r) => ({ label: String(r[field] ?? "Unknown"), count: r._count._all }));
