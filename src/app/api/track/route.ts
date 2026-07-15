@@ -5,11 +5,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { parseConsent, CONSENT_COOKIE, ANON_ID_COOKIE } from "@/lib/cookies";
-import { parseDevice, parseBrowser, externalReferrerHost, isTrackablePath } from "@/lib/track";
+import { parseDevice, parseBrowser, externalReferrerHost, isTrackablePath, parseUtm } from "@/lib/track";
 
 const schema = z.object({
   path: z.string().min(1).max(200),
   referrer: z.string().max(500).optional(),
+  search: z.string().max(500).optional(),
 });
 
 const RETENTION_DAYS = 90;
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
         device: parseDevice(ua),
         browser: parseBrowser(ua),
         referrer: externalReferrerHost(parsed.data.referrer, ownHost),
+        ...parseUtm(parsed.data.search),
       },
     });
 

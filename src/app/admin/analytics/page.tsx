@@ -14,6 +14,23 @@ export const metadata: Metadata = { title: "Analytics · AquaGear Admin" };
 
 const money = (cents: number) => `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
+type Delta = { text: string; dir: "up" | "down" | "flat" } | null;
+
+/** Percent change vs the previous period; null when both periods are empty. */
+function pctDelta(current: number, previous: number): Delta {
+  if (previous === 0 && current === 0) return null;
+  if (previous === 0) return { text: "new", dir: "up" };
+  const pct = Math.round(((current - previous) / previous) * 100);
+  return { text: `${pct > 0 ? "+" : ""}${pct}%`, dir: pct > 0 ? "up" : pct < 0 ? "down" : "flat" };
+}
+
+/** Percentage-point change, for metrics that are already percentages. */
+function pointsDelta(current: number, previous: number): Delta {
+  if (previous === 0 && current === 0) return null;
+  const pp = current - previous;
+  return { text: `${pp > 0 ? "+" : ""}${pp}pp`, dir: pp > 0 ? "up" : pp < 0 ? "down" : "flat" };
+}
+
 export default async function AnalyticsPage({
   searchParams,
 }: {
@@ -49,11 +66,11 @@ export default async function AnalyticsPage({
 
       {/* KPI cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi title="Revenue" value={money(a.revenue)} icon={DollarSign} sub="Placed + shipped" />
-        <Kpi title="Orders" value={a.orders.toString()} icon={ShoppingBag} sub={`${a.cartsCreated} carts started`} />
-        <Kpi title="Avg order value" value={money(a.aov)} icon={TrendingUp} sub="Revenue ÷ orders" />
-        <Kpi title="Cart → order" value={`${a.conversion}%`} icon={BarChart3} sub={`${a.cartAbandonment}% abandoned`} />
-        <Kpi title="New customers" value={a.newCustomers.toString()} icon={UserPlus} sub="Signed up in range" />
+        <Kpi title="Revenue" value={money(a.revenue)} icon={DollarSign} sub="Placed + shipped" delta={pctDelta(a.revenue, a.prev.revenue)} />
+        <Kpi title="Orders" value={a.orders.toString()} icon={ShoppingBag} sub={`${a.cartsCreated} carts started`} delta={pctDelta(a.orders, a.prev.orders)} />
+        <Kpi title="Avg order value" value={money(a.aov)} icon={TrendingUp} sub="Revenue ÷ orders" delta={pctDelta(a.aov, a.prev.aov)} />
+        <Kpi title="Cart → order" value={`${a.conversion}%`} icon={BarChart3} sub={`${a.cartAbandonment}% abandoned`} delta={pointsDelta(a.conversion, a.prev.conversion)} />
+        <Kpi title="New customers" value={a.newCustomers.toString()} icon={UserPlus} sub="Signed up in range" delta={pctDelta(a.newCustomers, a.prev.newCustomers)} />
         <Kpi title="Returning buyers" value={a.returningCustomers.toString()} icon={Repeat} sub="More than one order (all-time)" />
         <Kpi title="Registered orders" value={a.registeredOrders.toString()} icon={Users} sub={`${a.guestOrders} guest orders`} />
         <Kpi title="Shipped" value={a.shippedCount.toString()} icon={Package} sub="Fulfilled in range" />
@@ -111,6 +128,13 @@ export default async function AnalyticsPage({
           <BarChart3 className="h-5 w-5 text-gray-400" />
           <h3 className="text-lg font-semibold">Traffic</h3>
           <span className="text-xs text-gray-400">consented visitors only, in range</span>
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            {traffic.activeNow} active now
+          </span>
         </div>
         {traffic.pageviews === 0 ? (
           <p className="text-sm text-gray-500">
@@ -135,6 +159,8 @@ export default async function AnalyticsPage({
               <TopList title="Referrers" items={traffic.referrers} empty="Direct traffic only so far" />
               <TopList title="Devices" items={traffic.devices} />
               <TopList title="Browsers" items={traffic.browsers} />
+              <TopList title="UTM sources" items={traffic.sources} empty="No campaign-tagged visits yet" />
+              <TopList title="Campaigns" items={traffic.campaigns} empty="No campaign-tagged visits yet" />
             </div>
           </>
         )}
@@ -179,14 +205,42 @@ export default async function AnalyticsPage({
   );
 }
 
-function Kpi({ title, value, icon: Icon, sub }: { title: string; value: string; icon: typeof DollarSign; sub: string }) {
+function Kpi({
+  title,
+  value,
+  icon: Icon,
+  sub,
+  delta,
+}: {
+  title: string;
+  value: string;
+  icon: typeof DollarSign;
+  sub: string;
+  delta?: Delta;
+}) {
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-500">{title}</span>
         <Icon className="h-5 w-5 text-gray-400" />
       </div>
-      <div className="mt-2 text-3xl font-bold text-gray-900">{value}</div>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-3xl font-bold text-gray-900">{value}</span>
+        {delta && (
+          <span
+            className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+              delta.dir === "up"
+                ? "bg-emerald-50 text-emerald-700"
+                : delta.dir === "down"
+                  ? "bg-red-50 text-red-700"
+                  : "bg-gray-100 text-gray-500"
+            }`}
+            title="vs previous period"
+          >
+            {delta.dir === "up" ? "▲" : delta.dir === "down" ? "▼" : "–"} {delta.text}
+          </span>
+        )}
+      </div>
       <p className="mt-1 text-xs text-gray-500">{sub}</p>
     </div>
   );

@@ -31,7 +31,7 @@ export function rangeStart(key: RangeKey, now = new Date()): Date {
 
 /** Top-N counts for one PageView column within a range. */
 async function topBy(
-  field: "path" | "country" | "device" | "browser" | "referrer",
+  field: "path" | "country" | "device" | "browser" | "referrer" | "utmSource" | "utmCampaign",
   start: Date,
   take = 8,
 ) {
@@ -52,7 +52,14 @@ async function topBy(
 /** First-party traffic stats (consent-gated pageview log). */
 export async function getTraffic(range: RangeKey) {
   const start = rangeStart(range);
-  const [pageviews, visitors, topPages, countries, devices, browsers, referrers] = await Promise.all([
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const [activeNow, pageviews, visitors, topPages, countries, devices, browsers, referrers, sources, campaigns] = await Promise.all([
+    // "Active now": distinct consented visitors seen in the last 5 minutes.
+    prisma.pageView.findMany({
+      where: { createdAt: { gte: fiveMinAgo }, anonId: { not: null } },
+      distinct: ["anonId"],
+      select: { anonId: true },
+    }).then((r) => r.length),
     prisma.pageView.count({ where: { createdAt: { gte: start } } }),
     prisma.pageView.findMany({
       where: { createdAt: { gte: start }, anonId: { not: null } },
@@ -64,8 +71,10 @@ export async function getTraffic(range: RangeKey) {
     topBy("device", start),
     topBy("browser", start),
     topBy("referrer", start),
+    topBy("utmSource", start),
+    topBy("utmCampaign", start),
   ]);
-  return { pageviews, visitors, topPages, countries, devices, browsers, referrers };
+  return { activeNow, pageviews, visitors, topPages, countries, devices, browsers, referrers, sources, campaigns };
 }
 
 export async function getAnalytics(range: RangeKey) {
@@ -121,6 +130,23 @@ export async function getAnalytics(range: RangeKey) {
   const aov = orders > 0 ? Math.round(revenue / orders) : 0;
   const conversion = cartsCreated > 0 ? Math.round((orders / cartsCreated) * 100) : 0;
 
+  // Previous window of the same length, for headline-KPI deltas.
+  const prevStart = new Date(start.getTime() - (now.getTime() - start.getTime()));
+  const prevRange = { gte: prevStart, lt: start };
+  const [prevRevenueAgg, prevOrders, prevCarts, prevNewCustomers] = await Promise.all([
+    prisma.order.aggregate({ _sum: { total: true }, where: { status: { in: REVENUE_STATUSES }, createdAt: prevRange } }),
+    prisma.order.count({ where: { status: { not: "PENDING" }, createdAt: prevRange } }),
+    prisma.order.count({ where: { createdAt: prevRange } }),
+    prisma.user.count({ where: { createdAt: prevRange } }),
+  ]);
+  const prev = {
+    revenue: prevRevenueAgg._sum.total ?? 0,
+    orders: prevOrders,
+    aov: prevOrders > 0 ? Math.round((prevRevenueAgg._sum.total ?? 0) / prevOrders) : 0,
+    conversion: prevCarts > 0 ? Math.round((prevOrders / prevCarts) * 100) : 0,
+    newCustomers: prevNewCustomers,
+  };
+
   // Daily revenue buckets across the range.
   const dayCount = Math.max(1, Math.ceil((now.getTime() - start.getTime()) / 86400000));
   const daily = new Map<string, number>();
@@ -162,6 +188,7 @@ export async function getAnalytics(range: RangeKey) {
     orders,
     aov,
     conversion,
+    prev,
     cartAbandonment: 100 - conversion,
     cartsCreated,
     shippedCount,

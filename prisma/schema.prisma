@@ -130,6 +130,10 @@ model PageView {
   device    String? // desktop | mobile | tablet
   browser   String? // coarse family
   referrer  String? // external host only
+  // Campaign attribution, captured from the landing URL's utm_* params.
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
   createdAt DateTime @default(now())
 
   @@index([createdAt])
