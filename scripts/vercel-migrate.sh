@@ -10,6 +10,12 @@
 #   - existing/no-history (P3005) -> baseline once, then apply the rest.
 set -euo pipefail
 
+# DATABASE_URL points at Neon's pooled (pgbouncer) endpoint, where Postgres
+# advisory locks hang until Prisma's 10s timeout (P1002) — the documented
+# workaround is to disable the migrate advisory lock. Concurrency-safe here:
+# Vercel serializes production builds, so two migrates never race.
+export PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1
+
 # Migrations that predate migration-tracking — their tables are already in any
 # production DB that has served the store. Baselined (recorded, not re-run).
 BASELINE=(
@@ -19,7 +25,15 @@ BASELINE=(
   20260519154947_add_product_images
 )
 
-if output=$(npx prisma migrate deploy 2>&1); then
+deploy_with_retry() {
+  # One retry with a pause: absorbs Neon cold starts / transient timeouts.
+  npx prisma migrate deploy && return 0
+  echo "→ migrate deploy failed once; retrying in 15s (Neon cold start?)"
+  sleep 15
+  npx prisma migrate deploy
+}
+
+if output=$(deploy_with_retry 2>&1); then
   echo "$output"
   exit 0
 fi
@@ -30,7 +44,7 @@ if echo "$output" | grep -q "P3005"; then
   for m in "${BASELINE[@]}"; do
     npx prisma migrate resolve --applied "$m"
   done
-  npx prisma migrate deploy
+  deploy_with_retry
 else
   echo "migrate deploy failed for a non-P3005 reason (see above)." >&2
   exit 1
