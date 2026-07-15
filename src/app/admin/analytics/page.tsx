@@ -4,7 +4,7 @@ import {
   Package, Cookie, ArrowRight, BarChart3,
 } from "lucide-react";
 import { RevenueChart } from "@/components/admin/RevenueChart";
-import { getAnalytics, RANGES, type RangeKey } from "@/lib/analytics";
+import { getAnalytics, getTraffic, RANGES, type RangeKey } from "@/lib/analytics";
 import { getConsentStats } from "@/lib/cookie-stats";
 import type { Metadata } from "next";
 
@@ -22,7 +22,7 @@ export default async function AnalyticsPage({
   const { range: rangeParam } = await searchParams;
   const range: RangeKey = (RANGES.find((r) => r.key === rangeParam)?.key ?? "30d") as RangeKey;
 
-  const [a, consent] = await Promise.all([getAnalytics(range), getConsentStats()]);
+  const [a, traffic, consent] = await Promise.all([getAnalytics(range), getTraffic(range), getConsentStats()]);
 
   return (
     <div className="space-y-8">
@@ -105,6 +105,41 @@ export default async function AnalyticsPage({
         </div>
       </div>
 
+      {/* Traffic — first-party pageview log (visitors who opted into analytics cookies) */}
+      <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-gray-400" />
+          <h3 className="text-lg font-semibold">Traffic</h3>
+          <span className="text-xs text-gray-400">consented visitors only, in range</span>
+        </div>
+        {traffic.pageviews === 0 ? (
+          <p className="text-sm text-gray-500">
+            No pageviews recorded yet. Tracking starts as visitors accept analytics cookies; data is
+            retained for 90 days.
+          </p>
+        ) : (
+          <>
+            <div className="mb-6 grid gap-4 sm:grid-cols-2">
+              <div>
+                <div className="text-2xl font-bold text-gray-900">{traffic.pageviews.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Pageviews</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">{traffic.visitors.toLocaleString()}</div>
+                <div className="text-sm text-gray-500">Unique visitors</div>
+              </div>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <TopList title="Top pages" items={traffic.topPages} />
+              <TopList title="Countries" items={traffic.countries} />
+              <TopList title="Referrers" items={traffic.referrers} empty="Direct traffic only so far" />
+              <TopList title="Devices" items={traffic.devices} />
+              <TopList title="Browsers" items={traffic.browsers} />
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Visitors & consent (from the cookie audit log — the only first-party visitor signal stored) */}
       <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
@@ -133,9 +168,10 @@ export default async function AnalyticsPage({
         <div className="mt-6 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
           <p className="font-medium text-gray-800">Not shown here (no data pipeline yet)</p>
           <p className="mt-1">
-            Device, browser, geography, referrers, and pageviews are collected by <strong>Vercel Web Analytics</strong> —
-            view them in the Vercel dashboard. Heatmaps, scroll depth, search analytics, UTM attribution, and predictive
-            insights need a dedicated event-tracking table before they can be shown without guessing.
+            Device, browser, geography, referrers, and pageviews now come from the first-party consent-gated
+            pageview log above (all-visitor totals live in <strong>Vercel Web Analytics</strong>). Heatmaps,
+            scroll depth, search analytics, UTM attribution, and predictive insights still need richer event
+            tracking before they can be shown without guessing.
           </p>
         </div>
       </div>
@@ -183,6 +219,32 @@ function Funnel({ carts, orders, shipped }: { carts: number; orders: number; shi
       <p className="flex items-center gap-1 pt-1 text-xs text-gray-500">
         <ArrowRight size={12} /> {carts - orders} carts abandoned before ordering
       </p>
+    </div>
+  );
+}
+
+function TopList({ title, items, empty }: { title: string; items: { label: string; count: number }[]; empty?: string }) {
+  const max = Math.max(...items.map((i) => i.count), 1);
+  return (
+    <div>
+      <h4 className="mb-2 text-sm font-semibold text-gray-700">{title}</h4>
+      {items.length === 0 ? (
+        <p className="text-xs text-gray-400">{empty ?? "No data yet"}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {items.map((i) => (
+            <li key={i.label} className="text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="truncate text-gray-700">{i.label}</span>
+                <span className="shrink-0 font-medium text-gray-900">{i.count.toLocaleString()}</span>
+              </div>
+              <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                <div className="h-full rounded-full bg-sky-500" style={{ width: `${Math.round((i.count / max) * 100)}%` }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

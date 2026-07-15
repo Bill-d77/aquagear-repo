@@ -120,6 +120,22 @@ model Review {
 // Immutable audit trail of cookie-consent decisions (GDPR/ePrivacy Art. 7(1)).
 // One row per accept/reject/change; never updated or deleted. userId is optional
 // so guest consents are logged against the anonymous browser id.
+// First-party pageview log. Rows are written only for visitors whose analytics
+// consent is granted (checked server-side), and auto-pruned after 90 days.
+model PageView {
+  id        String   @id @default(cuid())
+  anonId    String?
+  path      String
+  country   String?
+  device    String? // desktop | mobile | tablet
+  browser   String? // coarse family
+  referrer  String? // external host only
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+}
+
 model CookieConsent {
   id         String   @id @default(cuid())
   anonId     String
