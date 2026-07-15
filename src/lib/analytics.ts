@@ -29,6 +29,41 @@ export function rangeStart(key: RangeKey, now = new Date()): Date {
   }
 }
 
+/** Top-N counts for one PageView column within a range. */
+async function topBy(
+  field: "path" | "country" | "device" | "browser" | "referrer",
+  start: Date,
+  take = 8,
+) {
+  const rows = await prisma.pageView.groupBy({
+    by: [field],
+    where: { createdAt: { gte: start }, [field]: { not: null } },
+    _count: { _all: true },
+    orderBy: { _count: { id: "desc" } },
+    take,
+  });
+  return rows.map((r) => ({ label: String(r[field] ?? "Unknown"), count: r._count._all }));
+}
+
+/** First-party traffic stats (consent-gated pageview log). */
+export async function getTraffic(range: RangeKey) {
+  const start = rangeStart(range);
+  const [pageviews, visitors, topPages, countries, devices, browsers, referrers] = await Promise.all([
+    prisma.pageView.count({ where: { createdAt: { gte: start } } }),
+    prisma.pageView.findMany({
+      where: { createdAt: { gte: start }, anonId: { not: null } },
+      distinct: ["anonId"],
+      select: { anonId: true },
+    }).then((r) => r.length),
+    topBy("path", start, 10),
+    topBy("country", start),
+    topBy("device", start),
+    topBy("browser", start),
+    topBy("referrer", start),
+  ]);
+  return { pageviews, visitors, topPages, countries, devices, browsers, referrers };
+}
+
 export async function getAnalytics(range: RangeKey) {
   const now = new Date();
   const start = rangeStart(range, now);

@@ -2,6 +2,7 @@ import "./globals.css";
 import { ReactNode } from "react";
 import { Providers } from "./providers";
 import { ConsentProvider } from "@/components/cookies/ConsentProvider";
+import { TrackPageview } from "@/components/cookies/TrackPageview";
 import { auth } from "@/lib/auth";
 import { Toaster } from "sonner";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
@@ -90,6 +91,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <JsonLd data={[organizationSchema(settings.storeName), websiteSchema(settings.storeName)]} />
         <Providers>
           <ConsentProvider>
+            <TrackPageview />
             <StorefrontShell
               header={header}
               footer={footer}
