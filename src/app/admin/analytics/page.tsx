@@ -128,16 +128,16 @@ export default async function AnalyticsPage({
             </div>
           </div>
         )}
-      </div>
 
-      {/* Honest scope note */}
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-600">
-        <p className="font-medium text-gray-800">Not shown here (no data pipeline yet)</p>
-        <p className="mt-1">
-          Device, browser, geography, referrers, and pageviews are collected by <strong>Vercel Web Analytics</strong> —
-          view them in the Vercel dashboard. Heatmaps, scroll depth, search analytics, UTM attribution, and predictive
-          insights need a dedicated event-tracking table before they can be shown without guessing.
-        </p>
+        {/* Honest scope note */}
+        <div className="mt-6 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+          <p className="font-medium text-gray-800">Not shown here (no data pipeline yet)</p>
+          <p className="mt-1">
+            Device, browser, geography, referrers, and pageviews are collected by <strong>Vercel Web Analytics</strong> —
+            view them in the Vercel dashboard. Heatmaps, scroll depth, search analytics, UTM attribution, and predictive
+            insights need a dedicated event-tracking table before they can be shown without guessing.
+          </p>
+        </div>
       </div>
     </div>
   );
