@@ -30,6 +30,27 @@ export function externalReferrerHost(referrer: string | undefined, ownHost: stri
   }
 }
 
+/** utm_source / utm_medium / utm_campaign from a landing URL's query string. */
+export function parseUtm(search: string | undefined): {
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+} {
+  const empty = { utmSource: null, utmMedium: null, utmCampaign: null };
+  if (!search) return empty;
+  try {
+    const params = new URLSearchParams(search);
+    const clean = (v: string | null) => (v ? v.slice(0, 100) : null);
+    return {
+      utmSource: clean(params.get("utm_source")),
+      utmMedium: clean(params.get("utm_medium")),
+      utmCampaign: clean(params.get("utm_campaign")),
+    };
+  } catch {
+    return empty;
+  }
+}
+
 /** Paths worth recording — storefront only. */
 export function isTrackablePath(path: string): boolean {
   return (

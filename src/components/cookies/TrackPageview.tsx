@@ -21,6 +21,8 @@ export function TrackPageview() {
     const body = JSON.stringify({
       path: pathname,
       referrer: firstBeacon.current ? document.referrer || undefined : undefined,
+      // Landing query string only — that's where utm_* campaign params live.
+      search: firstBeacon.current ? window.location.search || undefined : undefined,
     });
     firstBeacon.current = false;
     // sendBeacon survives page unloads; fetch keepalive is the fallback.
