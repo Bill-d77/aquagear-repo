@@ -37,7 +37,9 @@ async function topBy(
 ) {
   const rows = await prisma.pageView.groupBy({
     by: [field],
-    where: { createdAt: { gte: start }, [field]: { not: null } },
+    // `not: null` is only valid on nullable columns — `path` is required, and
+    // Prisma rejects the filter on it ("Argument `not` must not be null").
+    where: { createdAt: { gte: start }, ...(field === "path" ? {} : { [field]: { not: null } }) },
     _count: { _all: true },
     // Order by the grouped field's count — aggregate orderBy may only reference
     // fields present in `by` (ordering by `id` here throws at runtime).
