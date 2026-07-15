@@ -19,6 +19,25 @@ export function parseBrowser(ua: string): string {
   return "Other";
 }
 
+export function parseOs(ua: string): string {
+  // Order matters: iPad/iPhone UAs contain "like Mac OS X"; Android contains "Linux".
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Android/i.test(ua)) return "Android";
+  if (/Windows/i.test(ua)) return "Windows";
+  if (/Mac OS X|Macintosh/i.test(ua)) return "macOS";
+  if (/CrOS/i.test(ua)) return "ChromeOS";
+  if (/Linux/i.test(ua)) return "Linux";
+  return "Other";
+}
+
+/**
+ * Collapse dynamic paths to their route pattern so the Routes list groups
+ * per-product traffic. ponytail: /product is the only dynamic storefront route.
+ */
+export function routePattern(path: string): string {
+  return path.startsWith("/product/") ? "/product/[slug]" : path;
+}
+
 /** External referrer host, or null for same-site/empty/invalid referrers. */
 export function externalReferrerHost(referrer: string | undefined, ownHost: string): string | null {
   if (!referrer) return null;

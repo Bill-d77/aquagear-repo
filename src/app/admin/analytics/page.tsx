@@ -4,6 +4,7 @@ import {
   Package, Cookie, ArrowRight, BarChart3,
 } from "lucide-react";
 import { RevenueChart } from "@/components/admin/RevenueChart";
+import { TrafficChart } from "@/components/admin/TrafficChart";
 import { getAnalytics, getTraffic, RANGES, type RangeKey } from "@/lib/analytics";
 import { getConsentStats } from "@/lib/cookie-stats";
 import type { Metadata } from "next";
@@ -15,6 +16,21 @@ export const metadata: Metadata = { title: "Analytics · AquaGear Admin" };
 const money = (cents: number) => `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 type Delta = { text: string; dir: "up" | "down" | "flat" } | null;
+
+const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+/** "LB" → "🇱🇧 Lebanon"; leaves non-ISO labels (e.g. "Unknown") untouched. */
+function countryLabel(code: string): string {
+  if (!/^[A-Z]{2}$/.test(code)) return code;
+  const flag = code.replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+  let name: string | undefined;
+  try {
+    name = regionNames.of(code);
+  } catch {
+    name = undefined;
+  }
+  return `${flag} ${name ?? code}`;
+}
 
 /** Percent change vs the previous period; null when both periods are empty. */
 function pctDelta(current: number, previous: number): Delta {
@@ -153,13 +169,24 @@ export default async function AnalyticsPage({
                 <div className="text-sm text-gray-500">Unique visitors</div>
               </div>
             </div>
+            <div className="mb-6">
+              <h4 className="mb-2 text-sm font-semibold text-gray-700">Pageviews over time</h4>
+              <TrafficChart data={traffic.chart} />
+            </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               <TopList title="Top pages" items={traffic.topPages} />
-              <TopList title="Countries" items={traffic.countries} />
+              <TopList title="Routes" items={traffic.routes} />
+              <TopList
+                title="Countries"
+                items={traffic.countries.map((c) => ({ ...c, label: countryLabel(c.label) }))}
+                percentOf={traffic.pageviews}
+              />
               <TopList title="Referrers" items={traffic.referrers} empty="Direct traffic only so far" />
-              <TopList title="Devices" items={traffic.devices} />
-              <TopList title="Browsers" items={traffic.browsers} />
+              <TopList title="Devices" items={traffic.devices} percentOf={traffic.pageviews} />
+              <TopList title="Browsers" items={traffic.browsers} percentOf={traffic.pageviews} />
+              <TopList title="Operating systems" items={traffic.oses} percentOf={traffic.pageviews} />
               <TopList title="UTM sources" items={traffic.sources} empty="No campaign-tagged visits yet" />
+              <TopList title="UTM medium" items={traffic.mediums} empty="No campaign-tagged visits yet" />
               <TopList title="Campaigns" items={traffic.campaigns} empty="No campaign-tagged visits yet" />
             </div>
           </>
@@ -277,7 +304,18 @@ function Funnel({ carts, orders, shipped }: { carts: number; orders: number; shi
   );
 }
 
-function TopList({ title, items, empty }: { title: string; items: { label: string; count: number }[]; empty?: string }) {
+function TopList({
+  title,
+  items,
+  empty,
+  percentOf,
+}: {
+  title: string;
+  items: { label: string; count: number }[];
+  empty?: string;
+  /** When set, show each row as a % of this total instead of a raw count. */
+  percentOf?: number;
+}) {
   const max = Math.max(...items.map((i) => i.count), 1);
   return (
     <div>
@@ -290,7 +328,9 @@ function TopList({ title, items, empty }: { title: string; items: { label: strin
             <li key={i.label} className="text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="truncate text-gray-700">{i.label}</span>
-                <span className="shrink-0 font-medium text-gray-900">{i.count.toLocaleString()}</span>
+                <span className="shrink-0 font-medium text-gray-900">
+                  {percentOf ? `${Math.round((i.count / Math.max(percentOf, 1)) * 100)}%` : i.count.toLocaleString()}
+                </span>
               </div>
               <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-gray-100">
                 <div className="h-full rounded-full bg-sky-500" style={{ width: `${Math.round((i.count / max) * 100)}%` }} />
