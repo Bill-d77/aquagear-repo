@@ -53,7 +53,7 @@ export function SiteHeader({ isAuthed, isAdmin, cartCount: initialCartCount, wha
   // Animated underline that grows from the left; filled when active.
   const navLink = (active: boolean) =>
     `relative py-1 text-sm font-medium transition-colors hover:text-sky-700 ${active ? "text-sky-700" : "text-gray-700"} ` +
-    `after:absolute after:left-0 after:-bottom-0.5 after:h-0.5 after:w-full after:origin-left after:bg-sky-600 after:transition-transform after:duration-200 ` +
+    `after:absolute after:left-0 after:-bottom-0.5 after:h-0.5 after:w-full after:origin-left after:bg-sky-700 after:transition-transform after:duration-200 ` +
     `${active ? "after:scale-x-100" : "after:scale-x-0 hover:after:scale-x-100"}`;
 
   return (
@@ -95,7 +95,7 @@ export function SiteHeader({ isAuthed, isAdmin, cartCount: initialCartCount, wha
             <Link href="/cart" className={`${navLink(isActive("/cart"))} flex items-center gap-1.5`}>
               Cart
               {cartCount > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-600 px-1 text-xs font-semibold text-white">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-700 px-1 text-xs font-semibold text-white">
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>
               )}
@@ -104,7 +104,7 @@ export function SiteHeader({ isAuthed, isAdmin, cartCount: initialCartCount, wha
               {isAuthed ? "Account" : "Sign in"}
             </Link>
             {isAdmin && (
-              <Link href="/admin" className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sky-700">
+              <Link href="/admin" className="rounded-lg bg-sky-700 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sky-800">
                 Dashboard
               </Link>
             )}
