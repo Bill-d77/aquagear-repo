@@ -29,9 +29,10 @@ export const metadata: Metadata = {
     "Shop premium life jackets, diving gear, floats, waterproof bags, and marine safety equipment. Fast delivery across Lebanon.",
   applicationName: "AquaGear",
   icons: {
-    icon: "/logo_trans.png",
-    shortcut: "/logo_trans.png",
-    apple: "/logo_trans.png",
+    // icon-192.png is a 24 KB resize of logo_trans.png (1.5 MB) — browsers fetch icons eagerly
+    icon: "/icon-192.png",
+    shortcut: "/icon-192.png",
+    apple: "/icon-192.png",
   },
   robots: {
     index: true,
@@ -45,13 +46,13 @@ export const metadata: Metadata = {
     description:
       "Life jackets, diving gear, floats, waterproof bags, and marine safety equipment. Fast delivery across Lebanon.",
     url: SITE_URL,
-    images: [{ url: "/hero_section1.png", width: 1200, height: 630, alt: "AquaGear marine equipment" }],
+    images: [{ url: "/hero_section1.jpg", width: 1536, height: 1024, alt: "AquaGear marine equipment" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "AquaGear — Premium Marine & Water Sports Gear in Lebanon",
     description: "Life jackets, diving gear, floats, and marine safety equipment. Fast delivery across Lebanon.",
-    images: ["/hero_section1.png"],
+    images: ["/hero_section1.jpg"],
   },
 };
 
