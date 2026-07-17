@@ -44,7 +44,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               isActive(item.href)
-                ? "bg-sky-600 text-white"
+                ? "bg-sky-700 text-white"
                 : "text-slate-300 hover:bg-slate-800 hover:text-white"
             }`}
           >

@@ -71,7 +71,7 @@ export default async function AnalyticsPage({
               key={r.key}
               href={`/admin/analytics?range=${r.key}`}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                r.key === range ? "bg-sky-600 text-white" : "text-gray-600 hover:bg-gray-50"
+                r.key === range ? "bg-sky-700 text-white" : "text-gray-600 hover:bg-gray-50"
               }`}
             >
               {r.label}
@@ -147,7 +147,7 @@ export default async function AnalyticsPage({
           <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-700" />
             </span>
             {traffic.activeNow} active now
           </span>
@@ -292,7 +292,7 @@ function Funnel({ carts, orders, shipped }: { carts: number; orders: number; shi
               <span className="font-medium text-gray-900">{s.value} <span className="text-gray-400">({conv}%)</span></span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full rounded-full bg-sky-600" style={{ width: `${pctOfTop}%` }} />
+              <div className="h-full rounded-full bg-sky-700" style={{ width: `${pctOfTop}%` }} />
             </div>
           </div>
         );
@@ -351,7 +351,7 @@ function OptIn({ label, pct }: { label: string; pct: number }) {
         <span className="font-medium text-gray-900">{pct}%</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-        <div className="h-full rounded-full bg-sky-600" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-sky-700" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
