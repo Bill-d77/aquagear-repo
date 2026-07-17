@@ -31,6 +31,7 @@ export const metadata: Metadata = {
   title: "AquaGear4 — Premium marine equipment in Lebanon",
   description:
     "Shop professional life jackets, diving gear, floats, waterproof bags, and marine safety essentials. Trusted by swimmers, divers, and boat crews across Lebanon.",
+  alternates: { canonical: "/" },
 };
 
 const HERO_IMG = "/hero_section1.jpg";

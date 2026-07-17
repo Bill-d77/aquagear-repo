@@ -1,0 +1,15 @@
+# Manifest — SEO fixes (2026-07-17)
+
+Most of the originally planned changes (robots.txt, sitemap.xml, metadataBase,
+title template, Open Graph/Twitter cards, product JSON-LD, canonicals on shop
+and product pages, noindex on cart/checkout) already landed upstream in a
+parallel redesign and were kept as-is. This commit adds only the remaining gaps:
+
+## Modified files
+src/app/admin/layout.tsx    robots noindex, nofollow meta on the whole admin panel (belt on top of the robots.txt disallow)
+src/app/page.tsx            canonical "/" on the home page (only indexable page that lacked one)
+CHANGES.mf                  this manifest
+
+## Deployment note
+Canonical/sitemap URLs derive from SITE_URL (src/lib/site.ts): SITE_URL env
+var > Vercel production URL > localhost. Set SITE_URL once a custom domain exists.
