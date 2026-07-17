@@ -155,3 +155,31 @@ Status: Complete
 - [ ] Accessibility (fixes applied; verify 100 post-deploy)
 - [x] Security (headers in place; full CSP deferred by design)
 - [ ] AI Search Optimization (no FAQ/definition content exists yet)
+
+---
+
+## Iteration 1 — Post-deploy validation (2026-07-17, after PR #47 merged)
+
+All six fixes verified live on production:
+- /hero_section1.jpg → 200; og:image + twitter:image now resolve ✅
+- /icon-192.png → 200, 24,979 B, referenced as icon ✅
+- Title "AquaGear — Premium Marine Equipment in Lebanon" ✅
+- Hero fade-up removed, badges/buttons on darker shades, h2 feature cards ✅
+
+Lighthouse (mobile, production) — before → after:
+| Metric | Before | After |
+|---|---|---|
+| Performance | 90 | **97** |
+| LCP | 3.2 s | **2.0 s** ✅ (<2.5 target met) |
+| TBT | 40 ms | 10 ms |
+| CLS | 0 | 0 |
+| Accessibility | 95 | 96 |
+| Best Practices / SEO | 100 / 100 | 100 / 100 |
+
+Remaining color-contrast failures traced to components hardcoding bg-sky-600
+(add-to-cart, cookie banner, header CTAs, shop badges, PriceTag) — swept in
+PR #48 (fix/contrast-sweep). Expect A11y 100 after merge.
+
+Also merged from owner side: homepage canonical `alternates: { canonical: "/" }`.
+
+CWV History append: | 2026-07-17 (post-#47) | 2.0 s | 0 | TBT 10 ms | 100 ms |
