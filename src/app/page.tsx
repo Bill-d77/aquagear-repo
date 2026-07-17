@@ -28,7 +28,7 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "AquaGear4 — Premium marine equipment in Lebanon",
+  title: "AquaGear — Premium Marine Equipment in Lebanon",
   description:
     "Shop professional life jackets, diving gear, floats, waterproof bags, and marine safety essentials. Trusted by swimmers, divers, and boat crews across Lebanon.",
 };
@@ -79,7 +79,8 @@ export default async function Home() {
   return (
     <div className="space-y-16 sm:space-y-24 py-6 sm:py-10">
       {/* ───────── Hero ───────── */}
-      <section className="fade-up relative overflow-hidden rounded-3xl shadow-xl min-h-[440px] sm:min-h-[560px] lg:min-h-[600px] flex items-end sm:items-center">
+      {/* No fade-up here: animating the hero from opacity 0 delays LCP paint */}
+      <section className="relative overflow-hidden rounded-3xl shadow-xl min-h-[440px] sm:min-h-[560px] lg:min-h-[600px] flex items-end sm:items-center">
         {/* Full-bleed background photo (object-cover keeps it sharp & responsive).
             ponytail: to use your exact asset, drop it in /public and set HERO_IMG = "/hero.jpg". */}
         <Image
@@ -180,7 +181,7 @@ export default async function Home() {
             <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-sky-50 text-sky-600 mb-4">
               <Icon size={22} />
             </div>
-            <h3 className="font-semibold text-gray-900 text-lg">{title}</h3>
+            <h2 className="font-semibold text-gray-900 text-lg">{title}</h2>
             <p className="text-gray-600 mt-1 text-sm">{desc}</p>
             <div className="mt-4 inline-flex items-center justify-center w-9 h-9 rounded-full border text-sky-600 hover:bg-sky-50 transition">
               <ArrowRight size={16} />
@@ -216,7 +217,7 @@ export default async function Home() {
           <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
             {featured.map((p) => (
               <div key={p.id} className="card group relative flex flex-col hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-                <span className={`absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white ${isNew(p.createdAt) ? "bg-emerald-500" : "bg-sky-600"}`}>
+                <span className={`absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white ${isNew(p.createdAt) ? "bg-emerald-700" : "bg-sky-700"}`}>
                   {isNew(p.createdAt) ? "NEW" : "SALE"}
                 </span>
 
