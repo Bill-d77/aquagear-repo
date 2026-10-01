@@ -1,0 +1,21 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [{
+    "id": "100000000000001",
+    "changes": [{
+      "field": "messages",
+      "value": {
+        "messaging_product": "whatsapp",
+        "metadata": { "display_phone_number": "96170000000", "phone_number_id": "200000000000001" },
+        "contacts": [{ "profile": { "name": "Test Diver" }, "wa_id": "96170111222" }],
+        "messages": [
+          { "from": "96170111222", "id": "wamid.TEST_TEXT_1", "timestamp": "1790000000", "type": "text", "text": { "body": "I need 2 diving masks." } },
+          { "from": "96170111222", "id": "wamid.TEST_IMAGE_1", "timestamp": "1790000005", "type": "image", "image": { "id": "media-1", "mime_type": "image/jpeg", "caption": "this one" } },
+          { "from": "96170111222", "id": "wamid.TEST_LOC_1", "timestamp": "1790000010", "type": "location", "location": { "latitude": 34.4367, "longitude": 35.8497, "name": "Mina Port" } },
+          { "from": "96170111222", "id": "wamid.TEST_REACT_1", "timestamp": "1790000011", "type": "reaction", "reaction": { "message_id": "wamid.OUT_1", "emoji": "👍" } },
+          { "from": "96170111222", "id": "wamid.TEST_BTN_1", "timestamp": "1790000012", "type": "interactive", "interactive": { "type": "button_reply", "button_reply": { "id": "yes", "title": "Yes" } } }
+        ]
+      }
+    }]
+  }]
+}

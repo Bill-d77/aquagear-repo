@@ -5,6 +5,7 @@
 // Analytics (pageviews/devices/geo) or would need an events table to build.
 import { prisma } from "@/lib/prisma";
 import { routePattern } from "@/lib/track";
+import { NOT_YET_ORDER_STATUSES } from "@/lib/order-status";
 
 export type RangeKey = "today" | "7d" | "30d" | "90d" | "ytd";
 
@@ -139,12 +140,12 @@ export async function getAnalytics(range: RangeKey) {
     // Revenue: only realised orders.
     prisma.order.aggregate({ _sum: { total: true }, where: { status: { in: REVENUE_STATUSES }, createdAt: inRange } }),
     // Orders placed in range (excludes live/abandoned carts).
-    prisma.order.count({ where: { status: { not: "PENDING" }, createdAt: inRange } }),
+    prisma.order.count({ where: { status: { notIn: NOT_YET_ORDER_STATUSES }, createdAt: inRange } }),
     // Every order starts life as a PENDING cart, so createdAt-in-range = carts started.
     prisma.order.count({ where: { createdAt: inRange } }),
     prisma.order.count({ where: { status: "SHIPPED", createdAt: inRange } }),
     prisma.user.count({ where: { createdAt: inRange } }),
-    prisma.order.count({ where: { status: { not: "PENDING" }, createdAt: inRange, userId: { not: null } } }),
+    prisma.order.count({ where: { status: { notIn: NOT_YET_ORDER_STATUSES }, createdAt: inRange, userId: { not: null } } }),
     prisma.order.findMany({
       where: { status: { in: REVENUE_STATUSES }, createdAt: inRange },
       select: { createdAt: true, total: true },
@@ -177,7 +178,7 @@ export async function getAnalytics(range: RangeKey) {
   const prevRange = { gte: prevStart, lt: start };
   const [prevRevenueAgg, prevOrders, prevCarts, prevNewCustomers] = await Promise.all([
     prisma.order.aggregate({ _sum: { total: true }, where: { status: { in: REVENUE_STATUSES }, createdAt: prevRange } }),
-    prisma.order.count({ where: { status: { not: "PENDING" }, createdAt: prevRange } }),
+    prisma.order.count({ where: { status: { notIn: NOT_YET_ORDER_STATUSES }, createdAt: prevRange } }),
     prisma.order.count({ where: { createdAt: prevRange } }),
     prisma.user.count({ where: { createdAt: prevRange } }),
   ]);

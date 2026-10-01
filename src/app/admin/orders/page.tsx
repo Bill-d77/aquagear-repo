@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { MapPin, Phone, User, CreditCard, Package, Search, ExternalLink } from "lucide-react";
-import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-status";
+import { ORDER_STATUSES, DRAFT_STATUSES, ORDER_SOURCES, isDraftStatus } from "@/lib/order-status";
+import { SourceBadge, StatusBadge, statusLabel } from "@/components/admin/OrderBadges";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
 
@@ -11,20 +12,23 @@ export const metadata: Metadata = {
   title: "Orders · AquaGear Admin",
 };
 
-const OPEN_STATUSES: OrderStatus[] = ["PENDING", "PLACED"];
+const OPEN_STATUSES: string[] = [...DRAFT_STATUSES, "PENDING", "PLACED"];
+const ALL_STATUSES: string[] = [...DRAFT_STATUSES, ...ORDER_STATUSES];
 const FILTER_OPTIONS = [
-  { value: "OPEN", label: "Open (Pending + Placed)" },
-  { value: "ALL", label: "All" },
-  ...ORDER_STATUSES.map((s) => ({ value: s, label: s })),
+  { value: "OPEN", label: "Open (drafts, pending, placed)" },
+  { value: "ALL", label: "All statuses" },
+  ...ALL_STATUSES.map((s) => ({ value: s, label: statusLabel(s) })),
 ] as const;
+const SOURCE_LABELS: Record<string, string> = { WEBSITE: "Website", APP: "App", WHATSAPP: "WhatsApp", INSTAGRAM: "Instagram" };
 
-type SearchParams = Promise<{ status?: string; q?: string; from?: string; to?: string; page?: string; error?: string }>;
+type SearchParams = Promise<{ status?: string; source?: string; q?: string; from?: string; to?: string; page?: string; error?: string }>;
 
 const PAGE_SIZE = 25;
 
 export default async function AdminOrders({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const statusFilter = sp.status || "OPEN";
+  const sourceFilter = (ORDER_SOURCES as readonly string[]).includes(sp.source ?? "") ? sp.source! : "";
   const q = (sp.q || "").trim();
   const from = sp.from ? new Date(sp.from) : null;
   const to = sp.to ? new Date(sp.to) : null;
@@ -33,14 +37,17 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
   const where: Prisma.OrderWhereInput = {};
   if (statusFilter === "OPEN") {
     where.status = { in: OPEN_STATUSES };
-  } else if (statusFilter !== "ALL" && ORDER_STATUSES.includes(statusFilter as OrderStatus)) {
+  } else if (statusFilter !== "ALL" && ALL_STATUSES.includes(statusFilter)) {
     where.status = statusFilter;
   }
+  if (sourceFilter) where.source = sourceFilter;
   if (q) {
     where.OR = [
       { name: { contains: q, mode: "insensitive" } },
       { phoneNumber: { contains: q } },
       { id: { startsWith: q.toLowerCase() } },
+      { items: { some: { product: { name: { contains: q, mode: "insensitive" } } } } },
+      { conversation: { username: { contains: q, mode: "insensitive" } } },
     ];
   }
   if ((from && !isNaN(from.getTime())) || (to && !isNaN(to.getTime()))) {
@@ -54,7 +61,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
     prisma.order.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: { items: { include: { product: true } }, user: true },
+      include: { items: { include: { product: true } }, user: true, conversation: { select: { lastMessageAt: true } } },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
@@ -66,6 +73,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
   const pageHref = (p: number) => {
     const params = new URLSearchParams();
     if (sp.status) params.set("status", sp.status);
+    if (sourceFilter) params.set("source", sourceFilter);
     if (q) params.set("q", q);
     if (sp.from) params.set("from", sp.from);
     if (sp.to) params.set("to", sp.to);
@@ -89,13 +97,13 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
       )}
 
       {/* Filter bar */}
-      <form className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid gap-3 md:grid-cols-5">
+      <form className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid gap-3 md:grid-cols-6">
         <div className="relative md:col-span-2">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             name="q"
             defaultValue={q}
-            placeholder="Search name, phone, or order id…"
+            placeholder="Search name, phone, order id, product, @username…"
             className="w-full border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm focus:border-sky-500 focus:ring-sky-500"
           />
         </div>
@@ -106,6 +114,16 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
         >
           {FILTER_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        <select
+          name="source"
+          defaultValue={sourceFilter}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-sky-500 focus:ring-sky-500"
+        >
+          <option value="">All sources</option>
+          {ORDER_SOURCES.map((s) => (
+            <option key={s} value={s}>{SOURCE_LABELS[s]}</option>
           ))}
         </select>
         <input
@@ -120,7 +138,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
           defaultValue={sp.to || ""}
           className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-sky-500 focus:ring-sky-500"
         />
-        <div className="md:col-span-5 flex gap-2">
+        <div className="md:col-span-6 flex gap-2">
           <button type="submit" className="btn-primary text-sm">Apply</button>
           <Link href="/admin/orders" className="btn-outline text-sm">Reset</Link>
         </div>
@@ -139,17 +157,17 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
                   Order #{o.id.slice(0, 8).toUpperCase()}
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
-                <div className="text-sm text-gray-500">{new Date(o.createdAt).toLocaleString()}</div>
+                <div className="text-sm text-gray-500">
+                  {new Date(o.createdAt).toLocaleString()}
+                  {o.conversation && <> · last message {o.conversation.lastMessageAt.toLocaleString()}</>}
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  o.status === 'PLACED' ? 'bg-green-100 text-green-700' :
-                  o.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                  o.status === 'SHIPPED' ? 'bg-blue-100 text-blue-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {o.status}
-                </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <SourceBadge source={o.source} />
+                <StatusBadge status={o.status} />
+                {isDraftStatus(o.status) ? (
+                  <Link href={`/admin/orders/${o.id}`} className="btn-primary text-sm">Review</Link>
+                ) : (
                 <form action="/api/admin/orders/status" method="post" className="flex items-center gap-2">
                   <input type="hidden" name="id" value={o.id} />
                   <select name="status" defaultValue={o.status} className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -161,6 +179,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Sear
                     Update
                   </button>
                 </form>
+                )}
               </div>
             </div>
 

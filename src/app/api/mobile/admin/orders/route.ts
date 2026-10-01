@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireMobileAdmin, adminOrderInclude, serializeAdminOrder } from "@/lib/mobile-admin";
 import { orderStatusSchema } from "@/lib/validation";
+import { DRAFT_STATUSES } from "@/lib/order-status";
 
 const PAGE_SIZE = 30;
 
@@ -21,7 +22,9 @@ export async function GET(req: Request) {
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
 
   const where = {
-    status: statusParam.success ? statusParam.data : { not: "PENDING" },
+    // Meta drafts (NEEDS_REVIEW / PENDING_CONFIRMATION) are reviewed on the web
+    // dashboard and would break the app's status decoding, so they're excluded.
+    status: statusParam.success ? statusParam.data : { notIn: ["PENDING", ...DRAFT_STATUSES] },
     ...(query
       ? {
           OR: [

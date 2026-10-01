@@ -22,6 +22,12 @@ export const productFormSchema = z.object({
   mpn: z.string().trim().max(70).optional().or(z.literal("").transform(() => undefined)),
   condition: z.enum(["new", "refurbished", "used"]).default("new"),
   googleProductCategory: z.string().trim().max(120).optional().or(z.literal("").transform(() => undefined)),
+  // Comma-separated phrases customers use in DMs ("black mask, mask black"); used by the Meta order extractor.
+  aliases: z
+    .string()
+    .max(1000)
+    .optional()
+    .transform((v) => [...new Set((v ?? "").split(",").map((a) => a.trim().toLowerCase()).filter((a) => a.length >= 2 && a.length <= 60))].slice(0, 30)),
 });
 
 export const productUpdateFormSchema = productFormSchema.extend({

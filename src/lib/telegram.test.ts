@@ -44,3 +44,9 @@ test("escapes HTML-significant characters in user data", () => {
   assert.match(msg, /A &amp; B &lt;script&gt;/);
   assert.doesNotMatch(msg, /<script>/);
 });
+
+test("labels WhatsApp/Instagram drafts by channel, website orders unchanged", () => {
+  assert.match(buildOrderMessage({ ...base, source: "WHATSAPP", status: "NEEDS_REVIEW" }), /NEW WHATSAPP ORDER[\s\S]*NEEDS_REVIEW/);
+  assert.match(buildOrderMessage({ ...base, source: "INSTAGRAM" }), /NEW INSTAGRAM ORDER/);
+  assert.match(buildOrderMessage(base), /NEW AQUAGEAR ORDER/);
+});

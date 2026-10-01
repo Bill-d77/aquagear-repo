@@ -1,4 +1,5 @@
 {
   "buildCommand": "prisma generate && bash scripts/vercel-migrate.sh && next build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "crons": [{ "path": "/api/cron/meta", "schedule": "0 3 * * *" }]
 }

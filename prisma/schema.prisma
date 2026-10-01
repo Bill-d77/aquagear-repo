@@ -34,6 +34,9 @@ model Product {
   reviews     Review[]
   orderItems  OrderItem[]
   images      ProductImage[]
+  // Extra phrases customers use for this product in DMs ("black mask"), matched
+  // by the Meta order extractor before fuzzy name matching.
+  aliases     String[]       @default([])
 
   // Google Merchant Center identifiers (optional; admin-entered). When brand +
   // gtin/mpn are absent the feed marks identifier_exists=no, which Google allows.
@@ -82,6 +85,108 @@ model Order {
   trackingNumber   String?
   carrier          String?
   lastContactedAt  DateTime?
+  // WEBSITE | APP | WHATSAPP | INSTAGRAM
+  source           String        @default("WEBSITE")
+  conversation     Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  conversationId   String?
+  // Snapshot of the extractor output that created/last updated this draft.
+  extraction       Json?
+  audits           OrderAudit[]
+
+  @@index([source])
+  @@index([conversationId])
+  @@index([status, createdAt])
+}
+
+// Append-only history of who changed what on an order (admin edits, Meta
+// draft creation, confirmations, status changes).
+model OrderAudit {
+  id        String   @id @default(cuid())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  actor     String // admin email, or "system"
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+// One thread per customer per channel — WhatsApp and Instagram both model a DM
+// as a single ongoing thread between the business and the customer.
+model Conversation {
+  id             String    @id @default(cuid())
+  channel        String // WHATSAPP | INSTAGRAM
+  externalUserId String // WhatsApp wa_id, or Instagram-scoped user id (IGSID)
+  name           String?
+  username       String?
+  phone          String?
+  // OPEN | WAITING_FOR_ADMIN | WAITING_FOR_CUSTOMER | POTENTIAL_ORDER |
+  // ORDER_DETECTED | ORDER_CONFIRMED | CLOSED
+  status         String    @default("OPEN")
+  unreadCount    Int       @default(0)
+  lastMessageAt  DateTime  @default(now())
+  lastInboundAt  DateTime?
+  lastReadAt     DateTime?
+  // Latest extractor output, kept even when it isn't confident enough for a draft.
+  extraction     Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  messages       Message[]
+  orders         Order[]
+
+  @@unique([channel, externalUserId])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id                String       @id @default(cuid())
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId    String
+  // wamid.* / Instagram mid — globally unique, so webhook retries can't duplicate.
+  externalMessageId String       @unique
+  direction         String // INBOUND | OUTBOUND
+  type              String // TEXT | IMAGE | VIDEO | AUDIO | DOCUMENT | LOCATION | INTERACTIVE | REACTION | UNKNOWN
+  text              String?
+  // Media ids/urls, location, reply context. Never the media bytes.
+  metadata          Json?
+  // Delivery state for outbound messages: sent | delivered | read | failed
+  status            String?
+  sentBy            String? // admin email for dashboard replies
+  externalTimestamp DateTime
+  createdAt         DateTime     @default(now())
+
+  @@index([conversationId, externalTimestamp])
+}
+
+// Raw signed webhook deliveries, kept for audit/debugging and retried on failure.
+// eventKey = sha256 of the raw body, so Meta's retries of the same delivery dedupe.
+model MetaWebhookEvent {
+  id          String    @id @default(cuid())
+  eventKey    String    @unique
+  channel     String // WHATSAPP | INSTAGRAM | UNKNOWN
+  eventType   String
+  payload     Json
+  // RECEIVED | PROCESSING | PROCESSED | IGNORED | FAILED
+  status      String    @default("RECEIVED")
+  error       String?
+  retryCount  Int       @default(0)
+  nextRetryAt DateTime?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status, nextRetryAt])
+  @@index([receivedAt])
+}
+
+// Server-side Meta credentials that rotate at runtime (the Instagram user token
+// is refreshed every few weeks). Values are AES-GCM encrypted with AUTH_SECRET.
+model MetaCredential {
+  key       String   @id
+  value     String
+  seedHash  String // sha256 of the env token this was refreshed from
+  expiresAt DateTime?
+  updatedAt DateTime @updatedAt
 }
 
 model StoreSettings {

@@ -72,6 +72,7 @@ export async function POST(req: Request) {
       const order = await tx.order.create({
         data: {
           userId: user?.id,
+          source: "APP",
           name,
           location: `${city}, ${area}`,
           phoneNumber,

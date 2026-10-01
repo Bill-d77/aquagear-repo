@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { requireAdminApi, redirectWithError } from "@/lib/admin";
 import { orderStatusSchema } from "@/lib/validation";
 import { changeOrderStatus, InsufficientStockError, OrderNotFoundError } from "@/lib/order-transitions";
+import { isDraftStatus } from "@/lib/order-status";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   const guard = await requireAdminApi();
@@ -20,6 +22,12 @@ export async function POST(req: Request) {
   const referer = req.headers.get("referer") || "";
   const back = referer.includes(`/admin/orders/${id}`) ? `/admin/orders/${id}` : "/admin/orders";
 
+  const current = await prisma.order.findUnique({ where: { id }, select: { status: true } });
+  if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (isDraftStatus(current.status)) {
+    return redirectWithError(req, `/admin/orders/${id}`, "This is a draft from WhatsApp/Instagram — review and confirm it below.");
+  }
+
   try {
     await changeOrderStatus(id, status.data);
   } catch (e) {
@@ -30,6 +38,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     throw e;
+  }
+  if (current.status !== status.data) {
+    await prisma.orderAudit.create({
+      data: { orderId: id, actor: guard.user?.email ?? "admin", action: `Status ${current.status} → ${status.data}` },
+    });
   }
 
   return NextResponse.redirect(new URL(back, req.url));

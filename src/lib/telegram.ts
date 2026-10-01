@@ -28,7 +28,13 @@ export interface OrderNotification {
   shipping: number; // cents
   total: number; // cents
   dashboardUrl: string;
+  source?: string; // WEBSITE | APP | WHATSAPP | INSTAGRAM
 }
+
+const HEADERS: Record<string, string> = {
+  WHATSAPP: "🟢 <b>NEW WHATSAPP ORDER</b>",
+  INSTAGRAM: "📷 <b>NEW INSTAGRAM ORDER</b>",
+};
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
@@ -48,7 +54,7 @@ export function buildOrderMessage(o: OrderNotification): string {
   const time = d.toISOString().slice(11, 16) + " UTC";
 
   return [
-    "🛒 <b>NEW AQUAGEAR ORDER</b>",
+    HEADERS[o.source ?? ""] ?? "🛒 <b>NEW AQUAGEAR ORDER</b>",
     LINE,
     `📦 <b>Order</b> #${esc(o.id)}`,
     LINE,
@@ -150,6 +156,7 @@ export async function notifyNewOrder(orderId: string): Promise<void> {
       shipping: Math.max(0, order.total - subtotal), // stored total already includes the delivery fee
       total: order.total,
       dashboardUrl: base ? `${base}/admin/orders/${order.id}` : `/admin/orders/${order.id}`,
+      source: order.source,
     });
 
     const ok = await postTelegram(text);

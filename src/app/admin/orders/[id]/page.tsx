@@ -11,8 +11,12 @@ import {
   ArrowLeft,
   Calendar,
   StickyNote,
+  History,
+  MessageCircle,
 } from "lucide-react";
-import { ORDER_STATUSES } from "@/lib/order-status";
+import { ORDER_STATUSES, isDraftStatus } from "@/lib/order-status";
+import { SourceBadge, StatusBadge } from "@/components/admin/OrderBadges";
+import { DraftReview } from "@/components/admin/DraftReview";
 import { getStoreSettings } from "@/lib/settings";
 import { WhatsAppContactButton } from "@/components/admin/WhatsAppContactButton";
 import type { Metadata } from "next";
@@ -39,12 +43,18 @@ export default async function AdminOrderDetail({
       include: {
         items: { include: { product: { select: { id: true, name: true, slug: true } } } },
         user: true,
+        conversation: { select: { id: true, name: true, username: true } },
+        audits: { orderBy: { createdAt: "desc" } },
       },
     }),
     getStoreSettings(),
   ]);
 
   if (!order) return notFound();
+  const isDraft = isDraftStatus(order.status);
+  const products = isDraft
+    ? await prisma.product.findMany({ where: { isArchived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, price: true, stock: true } })
+    : [];
 
   const mapsQuery = encodeURIComponent(
     [order.location, order.apartment].filter(Boolean).join(", "),
@@ -58,12 +68,6 @@ export default async function AdminOrderDetail({
   const customerWhatsappUrl = customerWhatsAppNumber
     ? `https://wa.me/${customerWhatsAppNumber}?text=${whatsappPrefilled}`
     : `https://wa.me/${settings.whatsappNumber}?text=${whatsappPrefilled}`;
-
-  const statusBadge = (status: string) =>
-    status === "PLACED" ? "bg-green-100 text-green-700" :
-    status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
-    status === "SHIPPED" ? "bg-blue-100 text-blue-700" :
-    "bg-gray-100 text-gray-700";
 
   return (
     <div className="space-y-6">
@@ -84,11 +88,19 @@ export default async function AdminOrderDetail({
             </h1>
             <p className="text-sm text-gray-500">Placed {new Date(order.createdAt).toLocaleString()}</p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusBadge(order.status)}`}>
-            {order.status}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <SourceBadge source={order.source} />
+            <StatusBadge status={order.status} />
+            {order.conversation && (
+              <Link href={`/admin/inbox/${order.conversation.id}`} className="btn-outline text-sm inline-flex items-center gap-1">
+                <MessageCircle className="w-4 h-4" /> View conversation
+              </Link>
+            )}
+          </div>
         </div>
       </div>
+
+      {isDraft && <DraftReview order={order} products={products} />}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column — customer + items */}
@@ -172,8 +184,8 @@ export default async function AdminOrderDetail({
             </div>
           </div>
 
-          {/* Admin notes */}
-          <form action="/api/admin/orders/notes" method="post" className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-3">
+          {/* Admin notes (drafts edit notes in the review form) */}
+          {!isDraft && <form action="/api/admin/orders/notes" method="post" className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-3">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <StickyNote className="w-4 h-4" /> Internal notes
             </h2>
@@ -186,7 +198,24 @@ export default async function AdminOrderDetail({
               className="w-full border border-gray-300 rounded-md p-3 text-sm focus:border-sky-500 focus:ring-sky-500"
             />
             <button type="submit" className="btn-primary text-sm">Save notes</button>
-          </form>
+          </form>}
+
+          {/* Audit history */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-3">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <History className="w-4 h-4" /> History
+            </h2>
+            {order.audits.length === 0 && <p className="text-sm text-gray-500">No recorded changes.</p>}
+            <ol className="space-y-3">
+              {order.audits.map((a) => (
+                <li key={a.id} className="text-sm border-l-2 border-gray-200 pl-3">
+                  <div className="font-medium text-gray-900">{a.action}</div>
+                  <div className="text-xs text-gray-500">{a.createdAt.toLocaleString()} · {a.actor}</div>
+                  {a.detail && <p className="text-xs text-gray-600 whitespace-pre-wrap break-words mt-1">{a.detail}</p>}
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
 
         {/* Right column — status, contact, tracking */}
@@ -203,7 +232,7 @@ export default async function AdminOrderDetail({
               <TimelineEntry label="Shipped" at={order.shippedAt} />
               <TimelineEntry label="Canceled" at={order.canceledAt} />
             </div>
-            <form action="/api/admin/orders/status" method="post" className="space-y-2 pt-3 border-t">
+            {!isDraft && <form action="/api/admin/orders/status" method="post" className="space-y-2 pt-3 border-t">
               <input type="hidden" name="id" value={order.id} />
               <label className="block text-xs uppercase tracking-wider text-gray-500">Change status</label>
               <select
@@ -216,7 +245,7 @@ export default async function AdminOrderDetail({
                 ))}
               </select>
               <button className="btn-outline text-sm w-full">Update status</button>
-            </form>
+            </form>}
           </div>
 
           {/* WhatsApp contact */}
