@@ -66,7 +66,8 @@ export const authConfig: NextAuthConfig = {
         }
 
         try {
-          const user = await prisma.user.findUnique({ where: { email } });
+          // Case-insensitive: "Bob@x.com" and "bob@x.com" are the same account.
+          const user = await prisma.user.findFirst({ where: { email: { equals: email.trim(), mode: "insensitive" } } });
           if (!user) {
             return null;
           }

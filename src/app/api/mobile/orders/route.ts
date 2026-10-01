@@ -20,11 +20,16 @@ const orderSchema = z.object({
     )
     .min(1)
     .max(50),
-  name: z.string().min(1),
-  city: z.string().min(1),
-  area: z.string().min(1),
-  phoneNumber: z.string().min(1),
-  apartment: z.string().optional(),
+  name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
+  city: z.string().trim().min(1, "City is required").max(80, "City is too long"),
+  area: z.string().trim().min(1, "Area is required").max(120, "Area is too long"),
+  phoneNumber: z
+    .string()
+    .trim()
+    .min(1, "Phone number is required")
+    .max(30, "Phone number is too long")
+    .regex(/^[0-9+()\-\s]+$/, "Use digits, spaces, + or -"),
+  apartment: z.string().trim().max(200, "Address details are too long").optional(),
   paymentMode: z.enum(["COD"]),
 });
 

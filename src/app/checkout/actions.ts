@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { rateLimit, getClientIpFromHeaders } from "@/lib/rate-limit";
 import { redirect } from "next/navigation";
 import { CART_COOKIE_NAME, deliveryFeeFor } from "@/lib/cart";
 import { getStoreSettings } from "@/lib/settings";
@@ -12,11 +13,16 @@ import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
 
 const checkoutSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  city: z.string().min(1, "City is required"),
-  area: z.string().min(1, "Area is required"),
-  phoneNumber: z.string().min(1, "Phone number is required"),
-  apartment: z.string().optional(),
+  name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
+  city: z.string().trim().min(1, "City is required").max(80, "City is too long"),
+  area: z.string().trim().min(1, "Area is required").max(120, "Area is too long"),
+  phoneNumber: z
+    .string()
+    .trim()
+    .min(1, "Phone number is required")
+    .max(30, "Phone number is too long")
+    .regex(/^[0-9+()\-\s]+$/, "Use digits, spaces, + or -"),
+  apartment: z.string().trim().max(200, "Address details are too long").optional(),
   paymentMode: z.enum(["COD"]),
 });
 
@@ -46,6 +52,13 @@ export async function submitOrder(prevState: any, formData: FormData) {
     };
   }
 
+  // Same budget as the app's /api/mobile/orders: 10 orders per IP per 15 minutes.
+  // Counted after validation so a customer fixing typos isn't locked out.
+  const limit = rateLimit({ key: `order:ip:${getClientIpFromHeaders(await headers())}`, max: 10, windowMs: 15 * 60 * 1000 });
+  if (!limit.ok) {
+    return { message: "Too many orders. Please try again later." };
+  }
+
   const { name, city, area, phoneNumber, apartment, paymentMode } = validatedFields.data;
   const location = `${city}, ${area}`;
   // Attach the order to the signed-in customer so it shows in their account history.
@@ -69,7 +82,14 @@ export async function submitOrder(prevState: any, formData: FormData) {
         }
       }
 
-      const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      // Charge today's price, not the price when the item was added to the cart,
+      // and record it on the line items so the order shows what was charged.
+      for (const item of order.items) {
+        if (item.price !== item.product.price) {
+          await tx.orderItem.update({ where: { id: item.id }, data: { price: item.product.price } });
+        }
+      }
+      const subtotal = order.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
       const { shippingFlatRate } = await getStoreSettings();
       const total = subtotal + deliveryFeeFor(subtotal, shippingFlatRate);
 

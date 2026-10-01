@@ -46,9 +46,9 @@ export default async function Checkout() {
     name: i.product.name,
     imageUrl: ensureValidImageUrl(i.product.imageUrl),
     quantity: i.quantity,
-    price: i.price,
+    price: i.product.price, // live price — what checkout will charge
   }));
-  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotal = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
   const { shippingFlatRate } = await getStoreSettings();
 
   return (
