@@ -3,18 +3,20 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
+import { cache } from "react";
 
 /**
  * The session, if it belongs to a user who is an admin *right now*. The role
  * in the JWT is set at login and lives as long as the session (30 days), so a
  * demoted admin would keep access — always re-check the DB (as mobile-admin does).
  */
-async function adminSession(): Promise<Session | null> {
+// cache(): layout + page + actions in one request share a single role query.
+const adminSession = cache(async (): Promise<Session | null> => {
   const session = await auth();
   if (!session?.user?.id) return null;
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { role: true } });
   return user?.role === "ADMIN" ? session : null;
-}
+});
 
 /**
  * Returns true if the current request belongs to an admin. Read-only check;

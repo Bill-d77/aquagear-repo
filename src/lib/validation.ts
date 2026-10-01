@@ -1,4 +1,30 @@
 import { z } from "zod";
+/**
+ * Case-insensitive email match for Prisma. On Postgres, `mode: "insensitive"`
+ * compiles to ILIKE, where `_` and `%` are wildcards (a login for "a_min@x"
+ * would match "admin@x") — so escape them. Oldest row wins if legacy data has
+ * case-variant duplicates, keeping the result deterministic.
+ */
+export const emailWhere = (email: string) => ({
+  where: { email: { equals: email.trim().replace(/[\\%_]/g, "\\$&"), mode: "insensitive" as const } },
+  orderBy: { createdAt: "asc" as const },
+});
+
+/** Delivery details shared by web checkout and /api/mobile/orders. */
+export const shippingFieldsSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
+  city: z.string().trim().min(1, "City is required").max(80, "City is too long"),
+  area: z.string().trim().min(1, "Area is required").max(120, "Area is too long"),
+  phoneNumber: z
+    .string()
+    .trim()
+    .min(1, "Phone number is required")
+    .max(30, "Phone number is too long")
+    .regex(/^[0-9+()\-\s]+$/, "Use digits, spaces, + or -"),
+  apartment: z.string().trim().max(200, "Address details are too long").optional(),
+  paymentMode: z.enum(["COD"]),
+});
+
 export const roleSchema = z.enum(["USER", "ADMIN"]);
 export const orderStatusSchema = z.enum(["PENDING", "PLACED", "SHIPPED", "CANCELED"]);
 

@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { signMobileToken } from "@/lib/mobile";
+import { emailWhere } from "@/lib/validation";
 
 // Same budget as the web login: 10/IP and 5/email per 10 minutes.
 const LOGIN_IP_MAX = 10;
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const user = await prisma.user.findFirst({ where: { email: { equals: email.trim(), mode: "insensitive" } } });
+    const user = await prisma.user.findFirst(emailWhere(email));
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }

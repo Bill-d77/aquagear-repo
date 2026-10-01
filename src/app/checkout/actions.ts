@@ -1,10 +1,11 @@
 "use server";
 
-import { z } from "zod";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies, headers } from "next/headers";
-import { rateLimit, getClientIpFromHeaders } from "@/lib/rate-limit";
+import { revalidatePath } from "next/cache";
+import { orderRateLimit, getClientIpFromHeaders } from "@/lib/rate-limit";
+import { shippingFieldsSchema } from "@/lib/validation";
 import { redirect } from "next/navigation";
 import { CART_COOKIE_NAME, deliveryFeeFor } from "@/lib/cart";
 import { getStoreSettings } from "@/lib/settings";
@@ -12,19 +13,9 @@ import { auth } from "@/lib/auth";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
 
-const checkoutSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100, "Name is too long"),
-  city: z.string().trim().min(1, "City is required").max(80, "City is too long"),
-  area: z.string().trim().min(1, "Area is required").max(120, "Area is too long"),
-  phoneNumber: z
-    .string()
-    .trim()
-    .min(1, "Phone number is required")
-    .max(30, "Phone number is too long")
-    .regex(/^[0-9+()\-\s]+$/, "Use digits, spaces, + or -"),
-  apartment: z.string().trim().max(200, "Address details are too long").optional(),
-  paymentMode: z.enum(["COD"]),
-});
+const checkoutSchema = shippingFieldsSchema;
+
+class PriceChangedError extends Error {}
 
 export async function submitOrder(prevState: any, formData: FormData) {
   const cookieStore = await cookies();
@@ -52,9 +43,9 @@ export async function submitOrder(prevState: any, formData: FormData) {
     };
   }
 
-  // Same budget as the app's /api/mobile/orders: 10 orders per IP per 15 minutes.
-  // Counted after validation so a customer fixing typos isn't locked out.
-  const limit = rateLimit({ key: `order:ip:${getClientIpFromHeaders(await headers())}`, max: 10, windowMs: 15 * 60 * 1000 });
+  // Shared budget with the app's /api/mobile/orders. Counted after validation
+  // so a customer fixing typos isn't locked out.
+  const limit = orderRateLimit(getClientIpFromHeaders(await headers()));
   if (!limit.ok) {
     return { message: "Too many orders. Please try again later." };
   }
@@ -90,6 +81,9 @@ export async function submitOrder(prevState: any, formData: FormData) {
         }
       }
       const subtotal = order.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+      // Never charge more (or less) than the customer was shown: if a price
+      // changed while they were on the checkout page, stop and show the new total.
+      if (Number(formData.get("expectedSubtotal")) !== subtotal) throw new PriceChangedError();
       const { shippingFlatRate } = await getStoreSettings();
       const total = subtotal + deliveryFeeFor(subtotal, shippingFlatRate);
 
@@ -147,6 +141,10 @@ export async function submitOrder(prevState: any, formData: FormData) {
     after(() => notifyNewOrder(cartId));
 
   } catch (e) {
+    if (e instanceof PriceChangedError) {
+      revalidatePath("/checkout");
+      return { message: "Some prices changed since you opened checkout. Please review the updated total and place your order again." };
+    }
     console.error(e);
     return { message: e instanceof Error ? e.message : "Failed to submit order" };
   }
