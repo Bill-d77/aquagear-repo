@@ -221,7 +221,7 @@ export default async function Shop({
             {products.map((p) => (
               <div key={p.id} className="card !p-3 sm:!p-5 group relative flex flex-col hover:shadow-lg hover:-translate-y-1 hover:border-sky-300 transition-all duration-300">
                 {/* Badge */}
-                <span className={`absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white ${isNew(p.createdAt) ? "bg-emerald-500" : "bg-sky-600"}`}>
+                <span className={`absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide text-white ${isNew(p.createdAt) ? "bg-emerald-700" : "bg-sky-700"}`}>
                   {isNew(p.createdAt) ? "NEW" : "SALE"}
                 </span>
                 <Link href={`/product/${p.slug}`} className="block">
@@ -248,7 +248,7 @@ export default async function Shop({
                     <span className="font-medium text-amber-600">Only {p.stock} left</span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-emerald-600">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> In Stock
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-700" /> In Stock
                     </span>
                   )}
                 </div>

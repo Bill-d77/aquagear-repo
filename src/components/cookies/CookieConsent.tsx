@@ -71,7 +71,7 @@ function Banner({ onAcceptAll, onRejectNonEssential, onCloseModal, ...p }: Props
           </button>
           <button
             onClick={onAcceptAll}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+            className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-800 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
           >
             Accept all
           </button>
@@ -140,7 +140,7 @@ function PreferencesModal({ initial, onCloseModal, onAcceptAll, onSave }: Props)
           </button>
           <button
             onClick={onAcceptAll}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+            className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-800 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
           >
             Accept all
           </button>
