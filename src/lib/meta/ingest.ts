@@ -65,12 +65,16 @@ export async function processEvent(id: string): Promise<void> {
   const event = await prisma.metaWebhookEvent.findUniqueOrThrow({ where: { id } });
   try {
     const ev = normalizeWebhook(event.payload);
-    const { inboundConversations, newInstagram } = await applyEvent(ev);
+    const { inboundConversations, newInstagram, skipped } = await applyEvent(ev);
     for (const conversationId of newInstagram) await enrichInstagramProfile(conversationId);
     for (const conversationId of inboundConversations) await refreshDraft(conversationId);
+    // Nothing kept (non-ad WhatsApp chat): don't hold the message text for 30 days either.
+    const discarded = skipped > 0 && skipped === ev.messages.length && ev.statuses.length === 0;
     await prisma.metaWebhookEvent.update({
       where: { id },
-      data: { status: "PROCESSED", processedAt: new Date(), nextRetryAt: null, error: null },
+      data: discarded
+        ? { status: "IGNORED", payload: {}, processedAt: new Date(), nextRetryAt: null, error: "WhatsApp chat not started from an ad — discarded" }
+        : { status: "PROCESSED", processedAt: new Date(), nextRetryAt: null, error: null },
     });
     console.info(`[meta] event ${id} processed: ${ev.channel} ${ev.eventType} (${ev.messages.length} msg, ${ev.statuses.length} status)`);
   } catch (e) {
@@ -131,9 +135,15 @@ const STATUS_RANK: Record<string, number> = { sent: 1, delivered: 2, read: 3 };
 async function applyEvent(ev: NormalizedEvent) {
   const inboundConversations = new Set<string>();
   const newInstagram = new Set<string>();
+  let skipped = 0;
 
   for (const m of [...ev.messages].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())) {
-    const { conversation, created } = await upsertConversation(m);
+    const upserted = await upsertConversation(m);
+    if (!upserted) {
+      skipped++;
+      continue;
+    }
+    const { conversation, created } = upserted;
     if (created && m.channel === "INSTAGRAM") newInstagram.add(conversation.id);
 
     try {
@@ -184,7 +194,7 @@ async function applyEvent(ev: NormalizedEvent) {
     });
   }
 
-  return { inboundConversations, newInstagram };
+  return { inboundConversations, newInstagram, skipped };
 }
 
 async function upsertConversation(m: NormalizedMessage, retried = false) {
@@ -198,6 +208,9 @@ async function upsertConversation(m: NormalizedMessage, retried = false) {
     const conversation = Object.keys(patch).length ? await prisma.conversation.update({ where, data: patch }) : existing;
     return { conversation, created: false };
   }
+  // ponytail: WhatsApp is ads-only — a chat starts only from a Click-to-WhatsApp
+  // ad; anyone else's messages are dropped. Delete this line to accept every chat.
+  if (m.channel === "WHATSAPP" && !m.fromAd) return null;
   try {
     const conversation = await prisma.conversation.create({
       data: {

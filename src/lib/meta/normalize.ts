@@ -15,6 +15,8 @@ export interface NormalizedMessage {
   customerName?: string;
   customerPhone?: string;
   direction: "INBOUND" | "OUTBOUND";
+  /** WhatsApp only: the chat was opened from a Click-to-WhatsApp ad (details in metadata.ad). */
+  fromAd?: boolean;
   type: MessageType;
   text: string | null;
   metadata: Record<string, unknown> | null;
@@ -90,6 +92,8 @@ function normalizeWhatsApp(entries: unknown[]): NormalizedEvent {
           ignored.push("whatsapp message without id/from");
           continue;
         }
+        const content = whatsAppContent(m);
+        const ad = whatsAppAd(m.referral);
         messages.push({
           channel: "WHATSAPP",
           externalMessageId: m.id,
@@ -97,7 +101,8 @@ function normalizeWhatsApp(entries: unknown[]): NormalizedEvent {
           customerName: names.get(m.from),
           customerPhone: `+${m.from}`,
           direction: "INBOUND",
-          ...whatsAppContent(m),
+          ...content,
+          ...(ad ? { fromAd: true, metadata: { ...content.metadata, ad } } : {}),
           timestamp: fromSeconds(m.timestamp),
         });
       }
@@ -114,6 +119,18 @@ function normalizeWhatsApp(entries: unknown[]): NormalizedEvent {
     }
   }
   return summarize({ channel: "WHATSAPP", messages, statuses, ignored });
+}
+
+/** Click-to-WhatsApp ads: the first message of a chat opened from an ad carries `referral`. */
+function whatsAppAd(r: unknown) {
+  if (!isObj(r)) return null;
+  return {
+    sourceType: str(r.source_type) ?? null, // "ad" | "post"
+    adId: str(r.source_id) ?? null,
+    url: str(r.source_url) ?? null,
+    headline: clip(str(r.headline)),
+    ctwaClid: str(r.ctwa_clid) ?? null,
+  };
 }
 
 function whatsAppContent(m: Obj): Pick<NormalizedMessage, "type" | "text" | "metadata"> {
