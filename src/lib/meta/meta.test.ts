@@ -51,6 +51,29 @@ test("whatsapp: text, image, location, reaction, interactive", () => {
   assert.equal(btn.text, "Yes");
 });
 
+test("whatsapp: Click-to-WhatsApp ad referral → fromAd + ad metadata; plain chat is not fromAd", () => {
+  const wa = (extra: object) =>
+    normalizeWebhook({
+      object: "whatsapp_business_account",
+      entry: [{ changes: [{ field: "messages", value: { messages: [
+        { from: "96170111222", id: "wamid.AD", timestamp: "1790000000", type: "text", text: { body: "I want 2 masks" }, ...extra },
+      ] } }] }],
+    }).messages[0];
+
+  const fromAd = wa({
+    referral: { source_url: "https://fb.me/x", source_id: "120200000000", source_type: "ad", headline: "Diving masks", ctwa_clid: "clid-1" },
+  });
+  assert.equal(fromAd.fromAd, true);
+  assert.equal(fromAd.text, "I want 2 masks");
+  assert.deepEqual(fromAd.metadata?.ad, {
+    sourceType: "ad", adId: "120200000000", url: "https://fb.me/x", headline: "Diving masks", ctwaClid: "clid-1",
+  });
+
+  const plain = wa({});
+  assert.equal(plain.fromAd, undefined);
+  assert.equal(plain.metadata, null);
+});
+
 test("whatsapp: delivery statuses incl. failure reason", () => {
   const ev = normalizeWebhook(JSON.parse(fixture("whatsapp-status.json")));
   assert.equal(ev.eventType, "status");

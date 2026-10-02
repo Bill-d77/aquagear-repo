@@ -7,7 +7,7 @@
 //
 // The app must be started with the same META_* / CRON_SECRET values. Refuses to
 // run against a non-local database because it creates test products and orders.
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
@@ -33,14 +33,19 @@ const sign = (body) => `sha256=${createHmac("sha256", META_APP_SECRET).update(bo
 const post = (body, signature = sign(body)) =>
   fetch(`${BASE}/api/webhooks/meta`, { method: "POST", body, headers: { "content-type": "application/json", "x-hub-signature-256": signature } });
 let seq = 0;
-const waText = (text, id = `wamid.e2e.${run}.${++seq}`) =>
+const AD_ID = `1202${run}`;
+const waText = (text, { ad = false, id = `wamid.e2e.${run}.${++seq}` } = {}) =>
   JSON.stringify({
     object: "whatsapp_business_account",
     entry: [{ id: "WABA", changes: [{ field: "messages", value: {
       messaging_product: "whatsapp",
       metadata: { display_phone_number: "96100000000", phone_number_id: "PNID" },
       contacts: [{ profile: { name: `E2E Diver ${run}` }, wa_id: waId }],
-      messages: [{ from: waId, id, timestamp: String(Math.floor(Date.now() / 1000) + seq), type: "text", text: { body: text } }],
+      messages: [{
+        from: waId, id, timestamp: String(Math.floor(Date.now() / 1000) + seq), type: "text", text: { body: text },
+        // Click-to-WhatsApp ad: only a chat's first message carries the referral.
+        ...(ad ? { referral: { source_id: AD_ID, source_type: "ad", source_url: "https://fb.me/e2e", headline: "E2E ad", ctwa_clid: `clid-${run}` } } : {}),
+      }],
     } }] }],
   });
 const igText = (text, echo = false) =>
@@ -103,10 +108,23 @@ try {
     assert.equal(ev.status, "IGNORED");
   });
 
+  await step("WhatsApp: chat not started from an ad is discarded — no conversation, payload wiped", async () => {
+    const body = waText("Hi, do you have masks?");
+    assert.equal((await post(body)).status, 200);
+    const eventKey = createHash("sha256").update(body).digest("hex");
+    const ev = await until(async () => {
+      const e = await prisma.metaWebhookEvent.findUnique({ where: { eventKey } });
+      return e?.status === "IGNORED" ? e : null;
+    }, "discarded event");
+    assert.deepEqual(ev.payload, {});
+    assert.equal(await prisma.conversation.count({ where: { externalUserId: waId } }), 0);
+  });
+
   let draftId;
-  await step("WhatsApp: inquiry creates conversation but no order", async () => {
-    assert.equal((await post(waText("How much is the Zephyr Pro diving mask?"))).status, 200);
+  await step("WhatsApp: inquiry from an ad creates conversation (ad recorded) but no order", async () => {
+    assert.equal((await post(waText("How much is the Zephyr Pro diving mask?", { ad: true }))).status, 200);
     const conv = await until(() => prisma.conversation.findFirst({ where: { externalUserId: waId }, include: { messages: true } }), "conversation");
+    assert.equal(conv.messages[0].metadata?.ad?.adId, AD_ID);
     assert.equal(conv.name, `E2E Diver ${run}`);
     assert.equal(conv.phone, `+${waId}`);
     await until(async () => (await prisma.conversation.findFirst({ where: { externalUserId: waId } }))?.extraction, "extraction");

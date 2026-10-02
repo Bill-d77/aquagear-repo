@@ -130,6 +130,14 @@ regular WhatsApp app.
 
 The WhatsApp Business Account ID isn't needed by the code.
 
+**Ads-only.** WhatsApp chats are accepted only when they start from a
+Click-to-WhatsApp ad: the first message's `referral` (ad id, headline,
+`ctwa_clid`) is stored in that message's `metadata.ad`, and later messages in
+the same chat flow normally. Messages from a chat not opened from an ad are
+dropped and their webhook payload is wiped (event shows as IGNORED). To accept
+every chat, delete the `fromAd` line in `upsertConversation` (`src/lib/meta/ingest.ts`).
+Instagram is unaffected.
+
 ## Instagram setup
 
 Uses the **Instagram API with Instagram Login** (no Facebook Page required).
