@@ -17,6 +17,7 @@ Details for every step: [docs/meta-integration.md](docs/meta-integration.md).
 - [ ] `META_VERIFY_TOKEN`, `META_APP_SECRET`, `INSTAGRAM_APP_SECRET`
 - [ ] `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`
 - [ ] `INSTAGRAM_ACCESS_TOKEN` (optional `INSTAGRAM_ACCOUNT_ID`)
+- [ ] `YCLOUD_WEBHOOK_SECRET` if WhatsApp runs through YCloud coexistence (instead of `WHATSAPP_*`)
 - [ ] `CRON_SECRET` (Vercel Cron → `/api/cron/meta` daily); optional `META_GRAPH_API_VERSION`, `META_EVENT_RETENTION_DAYS`
 - [ ] Production credentials only in Production; dev/preview use the dev app
 - [ ] Deploy → migration `20261001100000_meta_inbox` applied by `scripts/vercel-migrate.sh`

@@ -3,19 +3,19 @@
 // signed webhook → conversation/message → draft order → admin review/confirm → stock.
 //
 //   DATABASE_URL=postgresql://…@localhost:…/db META_APP_SECRET=… META_VERIFY_TOKEN=… \
-//   CRON_SECRET=… BASE_URL=http://localhost:3100 node scripts/meta-e2e.mjs
+//   CRON_SECRET=… YCLOUD_WEBHOOK_SECRET=… BASE_URL=http://localhost:3100 node scripts/meta-e2e.mjs
 //
-// The app must be started with the same META_* / CRON_SECRET values. Refuses to
+// The app must be started with the same META_* / CRON_SECRET / YCLOUD_* values. Refuses to
 // run against a non-local database because it creates test products and orders.
 import { createHash, createHmac } from "node:crypto";
 import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 
-const { DATABASE_URL = "", META_APP_SECRET, META_VERIFY_TOKEN, CRON_SECRET } = process.env;
+const { DATABASE_URL = "", META_APP_SECRET, META_VERIFY_TOKEN, CRON_SECRET, YCLOUD_WEBHOOK_SECRET } = process.env;
 const BASE = process.env.BASE_URL ?? "http://localhost:3100";
 if (!/@(localhost|127\.0\.0\.1)[:/]/.test(DATABASE_URL)) throw new Error("Refusing to run: DATABASE_URL must point at localhost");
-for (const [k, v] of Object.entries({ META_APP_SECRET, META_VERIFY_TOKEN, CRON_SECRET })) if (!v) throw new Error(`${k} is required`);
+for (const [k, v] of Object.entries({ META_APP_SECRET, META_VERIFY_TOKEN, CRON_SECRET, YCLOUD_WEBHOOK_SECRET })) if (!v) throw new Error(`${k} is required`);
 
 const prisma = new PrismaClient();
 const run = Date.now().toString(36);
@@ -170,6 +170,36 @@ try {
       },
       before,
     );
+  });
+
+  await step("YCloud (coexistence): signed ad chat → conversation with ad; bad signature 401; status events not stored", async () => {
+    const ycWaId = `9613${String(Date.now()).slice(-6)}`;
+    const ycPost = (event, secret = YCLOUD_WEBHOOK_SECRET) => {
+      const body = JSON.stringify(event);
+      const t = String(Math.floor(Date.now() / 1000));
+      const s = createHmac("sha256", secret).update(`${t}.${body}`).digest("hex");
+      return fetch(`${BASE}/api/webhooks/ycloud`, { method: "POST", body, headers: { "content-type": "application/json", "ycloud-signature": `t=${t},s=${s}` } });
+    };
+    const inbound = {
+      id: `evt_${run}`, type: "whatsapp.inbound_message.received", apiVersion: "v2", createTime: new Date().toISOString(),
+      whatsappInboundMessage: {
+        id: `yc_${run}`, wamid: `wamid.yc.${run}`, wabaId: "WABA", from: `+${ycWaId}`, to: "+96100000000",
+        customerProfile: { name: `YC Diver ${run}` }, sendTime: new Date().toISOString(),
+        type: "text", text: { body: "Do you have Zephyr Pro masks?" },
+        referral: { source_id: AD_ID, source_type: "ad", source_url: "https://fb.me/e2e", headline: "E2E ad", ctwa_clid: `clid-yc-${run}` },
+      },
+    };
+    assert.equal((await ycPost(inbound, "wrong-secret")).status, 401);
+    assert.equal((await ycPost({ type: "whatsapp.message.updated", whatsappMessage: { id: "x", status: "read" } })).status, 200);
+    assert.equal((await ycPost(inbound)).status, 200);
+    const conv = await until(
+      () => prisma.conversation.findFirst({ where: { channel: "WHATSAPP", externalUserId: ycWaId }, include: { messages: true } }),
+      "ycloud conversation",
+    );
+    assert.equal(conv.name, `YC Diver ${run}`);
+    assert.equal(conv.phone, `+${ycWaId}`);
+    assert.equal(conv.messages.length, 1);
+    assert.equal(conv.messages[0].metadata?.ad?.adId, AD_ID);
   });
 
   await step("Instagram: inquiry → no order; echo stored as outbound; 'send me one' → NEEDS_REVIEW draft without invented phone", async () => {

@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { createHmac } from "node:crypto";
 import { verifyMetaSignature, safeEqual } from "./signature.ts";
 import { normalizeWebhook } from "./normalize.ts";
+import { verifyYCloudSignature, ycloudToMeta } from "./ycloud.ts";
 import { extractOrder, normalizePhone, type CatalogProduct, type ChatLine } from "./extract.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
@@ -115,6 +116,57 @@ test("message text is stored verbatim (HTML is escaped at render, not here) and 
   });
   assert.ok(ev.messages[0].text!.startsWith(xss));
   assert.equal(ev.messages[0].text!.length, 4096);
+});
+
+// ── YCloud (coexistence relay) ──────────────────────────────────────────────
+
+const ycloudAdEvent = {
+  id: "evt_1",
+  type: "whatsapp.inbound_message.received",
+  apiVersion: "v2",
+  createTime: "2026-10-02T12:00:00.000Z",
+  whatsappInboundMessage: {
+    id: "63f8", wamid: "wamid.YC1", wabaId: "WABA1", from: "+96170111222", to: "+96171000000",
+    customerProfile: { name: "Joe" }, sendTime: "2026-10-02T12:00:00.000Z",
+    type: "text", text: { body: "I want 2 masks" },
+    referral: { source_url: "https://fb.me/x", source_type: "ad", source_id: "1202", headline: "Masks", ctwa_clid: "clid-9" },
+  },
+};
+
+test("ycloud: signature t=…,s=hex over `t.body`; wrong secret/body/format rejected", () => {
+  const body = JSON.stringify(ycloudAdEvent);
+  const t = "1790000000";
+  const s = createHmac("sha256", "whsec").update(`${t}.${body}`).digest("hex");
+  assert.equal(verifyYCloudSignature(body, `t=${t},s=${s}`, "whsec"), true);
+  assert.equal(verifyYCloudSignature(body, `t=${t}, s=${s}`, "whsec"), true);
+  assert.equal(verifyYCloudSignature(body, `t=${t},s=${s}`, "other"), false);
+  assert.equal(verifyYCloudSignature(body + " ", `t=${t},s=${s}`, "whsec"), false);
+  assert.equal(verifyYCloudSignature(body, `t=1790000001,s=${s}`, "whsec"), false);
+  assert.equal(verifyYCloudSignature(body, `s=${s}`, "whsec"), false);
+  assert.equal(verifyYCloudSignature(body, `t=${t},s=zz`, "whsec"), false);
+  assert.equal(verifyYCloudSignature(body, null, "whsec"), false);
+  assert.equal(verifyYCloudSignature(body, `t=${t},s=${s}`, ""), false);
+});
+
+test("ycloud: inbound message → Meta payload → normalized like a Cloud API message (ad kept)", () => {
+  const [m] = normalizeWebhook(ycloudToMeta(ycloudAdEvent)).messages;
+  assert.equal(m.channel, "WHATSAPP");
+  assert.equal(m.externalMessageId, "wamid.YC1");
+  assert.equal(m.customerId, "96170111222");
+  assert.equal(m.customerPhone, "+96170111222");
+  assert.equal(m.customerName, "Joe");
+  assert.equal(m.text, "I want 2 masks");
+  assert.equal(m.timestamp.toISOString(), "2026-10-02T12:00:00.000Z");
+  assert.equal(m.fromAd, true);
+  assert.equal((m.metadata?.ad as { adId: string }).adId, "1202");
+});
+
+test("ycloud: non-inbound events (statuses, phone-app echoes) and junk are not converted", () => {
+  assert.equal(ycloudToMeta({ type: "whatsapp.message.updated", whatsappMessage: {} }), null);
+  assert.equal(ycloudToMeta({ type: "whatsapp.smb.message.echoes", whatsappMessage: { from: "+1" } }), null);
+  assert.equal(ycloudToMeta({ type: "whatsapp.inbound_message.received" }), null);
+  assert.equal(ycloudToMeta({ type: "whatsapp.inbound_message.received", whatsappInboundMessage: { wamid: "w", type: "text" } }), null);
+  assert.equal(ycloudToMeta(null), null);
 });
 
 // ── Product matching ────────────────────────────────────────────────────────
