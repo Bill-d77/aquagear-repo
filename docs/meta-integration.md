@@ -138,6 +138,26 @@ dropped and their webhook payload is wiped (event shows as IGNORED). To accept
 every chat, delete the `fromAd` line in `upsertConversation` (`src/lib/meta/ingest.ts`).
 Instagram is unaffected.
 
+## WhatsApp via YCloud (coexistence)
+
+Keeps the number working in the WhatsApp Business app on the phone while the
+site also receives its messages. Used because doing coexistence with our own
+Meta app needs Tech Provider status (→ Business Verification).
+
+1. ycloud.com → sign up (free plan) → connect the number via **WhatsApp
+   Business App coexistence** (scan the QR code from the phone app).
+2. YCloud dashboard → **Developers → Webhooks** → add endpoint
+   `https://<site>/api/webhooks/ycloud`, event **whatsapp.inbound_message.received**.
+3. Copy the endpoint **secret** → `YCLOUD_WEBHOOK_SECRET` (Vercel Production) → redeploy.
+
+`/api/webhooks/ycloud` verifies `YCloud-Signature` (`t=<unix>,s=<hex HMAC-SHA256
+of "t.body">`), re-wraps the message in Meta's Cloud API envelope
+(`src/lib/meta/ycloud.ts`) and hands it to the same pipeline, so the ads-only
+rule, drafts and review all apply. Other YCloud events (status updates, echoes
+of messages sent from the phone) are acknowledged and not stored. Reply from
+the phone app: the admin reply box and image previews use the Cloud API
+credentials, which this setup doesn't have.
+
 ## Instagram setup
 
 Uses the **Instagram API with Instagram Login** (no Facebook Page required).
