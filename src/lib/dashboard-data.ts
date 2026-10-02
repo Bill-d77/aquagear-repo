@@ -1,6 +1,7 @@
 // Dashboard aggregates shared by the /admin page and /api/mobile/admin/dashboard.
 import { prisma } from "@/lib/prisma";
 import { LOW_STOCK_THRESHOLD } from "@/lib/admin";
+import { NOT_YET_ORDER_STATUSES } from "@/lib/order-status";
 
 export const REVENUE_STATUSES = ["PLACED", "SHIPPED"] as const;
 export const STUCK_THRESHOLD_HOURS = 24;
@@ -37,14 +38,14 @@ export async function getDashboardData() {
     }),
     // PENDING rows are live/abandoned carts, not orders — exclude them from
     // order counts and recents (revenue above already filters).
-    prisma.order.count({ where: { status: { not: "PENDING" }, createdAt: { gte: thirtyDaysAgo } } }),
-    prisma.order.count({ where: { status: { not: "PENDING" }, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
+    prisma.order.count({ where: { status: { notIn: NOT_YET_ORDER_STATUSES }, createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.order.count({ where: { status: { notIn: NOT_YET_ORDER_STATUSES }, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }),
     prisma.product.count({ where: { isArchived: false, stock: { lt: LOW_STOCK_THRESHOLD } } }),
     prisma.order.count({ where: { status: "PLACED", placedAt: { lt: stuckCutoff } } }),
     prisma.order.findMany({
-      where: { status: { not: "PENDING" } },
+      where: { status: { notIn: NOT_YET_ORDER_STATUSES } },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, name: true, total: true, status: true, createdAt: true },

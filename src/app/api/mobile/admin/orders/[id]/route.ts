@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireMobileAdmin, adminOrderInclude, serializeAdminOrder } from "@/lib/mobile-admin";
 import { orderStatusSchema } from "@/lib/validation";
 import { changeOrderStatus, InsufficientStockError, OrderNotFoundError } from "@/lib/order-transitions";
+import { isDraftStatus } from "@/lib/order-status";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,8 @@ export async function GET(req: Request, { params }: Params) {
 
   const { id } = await params;
   const order = await prisma.order.findUnique({ where: { id }, include: adminOrderInclude });
-  if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Meta drafts are reviewed on the web dashboard; the app doesn't know their statuses.
+  if (!order || isDraftStatus(order.status)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ order: serializeAdminOrder(order) });
 }
 
@@ -40,6 +42,8 @@ export async function PATCH(req: Request, { params }: Params) {
   const { status, notes, trackingNumber, carrier, markContacted } = parsed.data;
 
   try {
+    const current = await prisma.order.findUnique({ where: { id }, select: { status: true } });
+    if (!current || isDraftStatus(current.status)) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (status) {
       await changeOrderStatus(id, status);
     }

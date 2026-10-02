@@ -10,7 +10,9 @@
     "seed": "node prisma/seed.mjs",
     "postinstall": "prisma generate",
     "db:local": "node scripts/switch-db.js local && prisma generate",
-    "db:prod": "node scripts/switch-db.js prod"
+    "db:prod": "node scripts/switch-db.js prod",
+    "test": "node --test \"src/lib/**/*.test.ts\"",
+    "test:meta-e2e": "node scripts/meta-e2e.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.0",

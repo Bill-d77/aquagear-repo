@@ -14,6 +14,8 @@ import {
   LogOut,
   Tag,
   BarChart3,
+  MessageCircle,
+  Webhook,
   Menu,
   X,
 } from "lucide-react";
@@ -21,10 +23,12 @@ import {
 const navItems = [
   { href: "/admin",            label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/orders",     label: "Orders",    icon: ShoppingCart },
+  { href: "/admin/inbox",      label: "Inbox",     icon: MessageCircle },
   { href: "/admin/products",   label: "Products",  icon: Package },
   { href: "/admin/categories", label: "Categories",icon: Tag },
   { href: "/admin/users",      label: "Customers", icon: Users },
   { href: "/admin/analytics",  label: "Analytics", icon: BarChart3 },
+  { href: "/admin/meta",       label: "Meta",      icon: Webhook },
   { href: "/admin/settings",   label: "Settings",  icon: Settings },
 ];
 

@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { DollarSign, Package, ShoppingBag, Users, AlertTriangle, Clock } from "lucide-react";
+import { DollarSign, Package, ShoppingBag, Users, AlertTriangle, Clock, MessageCircle } from "lucide-react";
 import { RevenueChart } from "@/components/admin/RevenueChart";
 import { LOW_STOCK_THRESHOLD } from "@/lib/admin";
-import { getDashboardData, STUCK_THRESHOLD_HOURS } from "@/lib/dashboard-data";
+import { getDashboardData, STUCK_THRESHOLD_HOURS, REVENUE_STATUSES } from "@/lib/dashboard-data";
+import { prisma } from "@/lib/prisma";
+import { DRAFT_STATUSES } from "@/lib/order-status";
+import { SourceBadge } from "@/components/admin/OrderBadges";
 import { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +24,22 @@ function trendLabel(current: number, previous: number) {
 }
 
 export default async function AdminDashboard() {
-  const data = await getDashboardData();
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [data, draftCount, unreadConversations, bySource, newConversations, convertedConversations] = await Promise.all([
+    getDashboardData(),
+    prisma.order.count({ where: { status: { in: [...DRAFT_STATUSES] } } }),
+    prisma.conversation.count({ where: { unreadCount: { gt: 0 } } }),
+    prisma.order.groupBy({
+      by: ["source"],
+      where: { status: { in: [...REVENUE_STATUSES] }, createdAt: { gte: thirtyDaysAgo } },
+      _count: true,
+      _sum: { total: true },
+    }),
+    prisma.conversation.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.conversation.count({
+      where: { createdAt: { gte: thirtyDaysAgo }, orders: { some: { status: { in: [...REVENUE_STATUSES] } } } },
+    }),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -30,8 +48,36 @@ export default async function AdminDashboard() {
         <p className="text-gray-500 mt-2">Last 30 days, compared to the prior 30.</p>
       </div>
 
-      {(data.stuckPlacedCount > 0 || data.lowStockCount > 0) && (
+      {(data.stuckPlacedCount > 0 || data.lowStockCount > 0 || draftCount > 0 || unreadConversations > 0) && (
         <div className="grid gap-3 md:grid-cols-2">
+          {draftCount > 0 && (
+            <Link
+              href="/admin/orders?status=OPEN"
+              className="flex items-center gap-3 p-4 rounded-lg bg-violet-50 border border-violet-200 text-violet-900 hover:bg-violet-100 transition-colors"
+            >
+              <ShoppingBag className="w-5 h-5 shrink-0" />
+              <div className="flex-1">
+                <div className="font-semibold">
+                  {draftCount} WhatsApp/Instagram order{draftCount === 1 ? "" : "s"} to review
+                </div>
+                <div className="text-sm text-violet-800">Confirm, edit, or reject detected orders.</div>
+              </div>
+            </Link>
+          )}
+          {unreadConversations > 0 && (
+            <Link
+              href="/admin/inbox?unread=1"
+              className="flex items-center gap-3 p-4 rounded-lg bg-sky-50 border border-sky-200 text-sky-900 hover:bg-sky-100 transition-colors"
+            >
+              <MessageCircle className="w-5 h-5 shrink-0" />
+              <div className="flex-1">
+                <div className="font-semibold">
+                  {unreadConversations} unread conversation{unreadConversations === 1 ? "" : "s"}
+                </div>
+                <div className="text-sm text-sky-800">Open the inbox to reply.</div>
+              </div>
+            </Link>
+          )}
           {data.stuckPlacedCount > 0 && (
             <Link
               href="/admin/orders?status=PLACED"
@@ -88,6 +134,29 @@ export default async function AdminDashboard() {
           icon={Users}
           trend={trendLabel(data.usersThis30, data.usersPrev30)}
         />
+      </div>
+
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h3 className="font-semibold text-lg">Orders by source (30d)</h3>
+          <span className="text-xs text-gray-500">
+            PLACED + SHIPPED · DM conversations → orders: {convertedConversations}/{newConversations}
+            {newConversations > 0 && ` (${Math.round((convertedConversations / newConversations) * 100)}%)`}
+          </span>
+        </div>
+        {bySource.length === 0 ? (
+          <p className="text-sm text-gray-500">No orders in the last 30 days.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[...bySource].sort((a, b) => b._count - a._count).map((s) => (
+              <div key={s.source} className="rounded-lg border border-gray-100 p-3 space-y-1">
+                <SourceBadge source={s.source} />
+                <div className="text-xl font-bold text-gray-900">{s._count} order{s._count === 1 ? "" : "s"}</div>
+                <div className="text-xs text-gray-500">${((s._sum.total ?? 0) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })} revenue</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

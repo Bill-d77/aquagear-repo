@@ -34,6 +34,7 @@ export async function POST(req: Request) {
       mpn: form.get("mpn"),
       condition: form.get("condition") ?? "new",
       googleProductCategory: form.get("googleProductCategory"),
+      aliases: form.get("aliases") ?? "",
     });
 
     if (!parsed.success) {
