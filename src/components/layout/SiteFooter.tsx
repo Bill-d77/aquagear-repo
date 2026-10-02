@@ -48,6 +48,8 @@ export function SiteFooter({ whatsappNumber }: SiteFooterProps) {
             <Link href="/shop" className="hover:text-sky-700 transition-colors">Shop</Link>
             <Link href="/account" className="hover:text-sky-700 transition-colors">Account</Link>
             <a href={wa} target="_blank" rel="noopener noreferrer" className="hover:text-sky-700 transition-colors">Contact</a>
+            <Link href="/privacy-policy" className="hover:text-sky-700 transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-sky-700 transition-colors">Terms</Link>
             <Link href="/cookie-policy" className="hover:text-sky-700 transition-colors">Cookie Policy</Link>
             <button
               type="button"
