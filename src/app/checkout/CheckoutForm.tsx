@@ -108,6 +108,8 @@ export function CheckoutForm({ items, subtotal, deliveryFee, baseFee }: Checkout
 
   return (
     <form action={formAction} className="fade-up mx-auto max-w-md space-y-5 pb-28">
+      {/* The subtotal shown here; the server refuses to charge a different one. */}
+      <input type="hidden" name="expectedSubtotal" value={subtotal} />
       {/* Header */}
       <div className="relative flex items-center justify-center pt-2">
         <Link href="/cart" aria-label="Back to cart" className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100">

@@ -24,18 +24,18 @@ export default async function CartPage() {
     cartId
       ? prisma.orderItem.findMany({
           where: { orderId: cartId, order: { status: "PENDING" } },
-          include: { product: { select: { name: true, imageUrl: true, slug: true } } },
+          include: { product: { select: { name: true, imageUrl: true, slug: true, price: true } } },
         })
       : Promise.resolve([] as Array<{
           id: string;
-          product: { name: string; imageUrl: string; slug: string };
-          price: number;
+          product: { name: string; imageUrl: string; slug: string; price: number };
           quantity: number;
         }>),
     getStoreSettings(),
   ]);
 
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  // Live product prices — checkout charges these, not the price at add-to-cart time.
+  const total = items.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
   const whatsappMessage = encodeURIComponent(
     `Hello, I'd like to order:\n` +
@@ -82,7 +82,7 @@ export default async function CartPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate">{i.product.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{(i.price / 100).toFixed(2)} USD each</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{(i.product.price / 100).toFixed(2)} USD each</p>
                   </div>
                 </div>
 
@@ -91,7 +91,7 @@ export default async function CartPage() {
                   <CartQuantitySelector
                     itemId={i.id}
                     initialQuantity={i.quantity}
-                    unitPrice={i.price}
+                    unitPrice={i.product.price}
                   />
                   <form action="/api/cart/remove" method="post">
                     <input type="hidden" name="id" value={i.id} />

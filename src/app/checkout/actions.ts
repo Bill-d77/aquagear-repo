@@ -1,9 +1,11 @@
 "use server";
 
-import { z } from "zod";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { orderRateLimit, getClientIpFromHeaders } from "@/lib/rate-limit";
+import { shippingFieldsSchema } from "@/lib/validation";
 import { redirect } from "next/navigation";
 import { CART_COOKIE_NAME, deliveryFeeFor } from "@/lib/cart";
 import { getStoreSettings } from "@/lib/settings";
@@ -11,14 +13,9 @@ import { auth } from "@/lib/auth";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
 
-const checkoutSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  city: z.string().min(1, "City is required"),
-  area: z.string().min(1, "Area is required"),
-  phoneNumber: z.string().min(1, "Phone number is required"),
-  apartment: z.string().optional(),
-  paymentMode: z.enum(["COD"]),
-});
+const checkoutSchema = shippingFieldsSchema;
+
+class PriceChangedError extends Error {}
 
 export async function submitOrder(prevState: any, formData: FormData) {
   const cookieStore = await cookies();
@@ -46,6 +43,13 @@ export async function submitOrder(prevState: any, formData: FormData) {
     };
   }
 
+  // Shared budget with the app's /api/mobile/orders. Counted after validation
+  // so a customer fixing typos isn't locked out.
+  const limit = orderRateLimit(getClientIpFromHeaders(await headers()));
+  if (!limit.ok) {
+    return { message: "Too many orders. Please try again later." };
+  }
+
   const { name, city, area, phoneNumber, apartment, paymentMode } = validatedFields.data;
   const location = `${city}, ${area}`;
   // Attach the order to the signed-in customer so it shows in their account history.
@@ -69,7 +73,17 @@ export async function submitOrder(prevState: any, formData: FormData) {
         }
       }
 
-      const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      // Charge today's price, not the price when the item was added to the cart,
+      // and record it on the line items so the order shows what was charged.
+      for (const item of order.items) {
+        if (item.price !== item.product.price) {
+          await tx.orderItem.update({ where: { id: item.id }, data: { price: item.product.price } });
+        }
+      }
+      const subtotal = order.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+      // Never charge more (or less) than the customer was shown: if a price
+      // changed while they were on the checkout page, stop and show the new total.
+      if (Number(formData.get("expectedSubtotal")) !== subtotal) throw new PriceChangedError();
       const { shippingFlatRate } = await getStoreSettings();
       const total = subtotal + deliveryFeeFor(subtotal, shippingFlatRate);
 
@@ -127,6 +141,10 @@ export async function submitOrder(prevState: any, formData: FormData) {
     after(() => notifyNewOrder(cartId));
 
   } catch (e) {
+    if (e instanceof PriceChangedError) {
+      revalidatePath("/checkout");
+      return { message: "Some prices changed since you opened checkout. Please review the updated total and place your order again." };
+    }
     console.error(e);
     return { message: e instanceof Error ? e.message : "Failed to submit order" };
   }

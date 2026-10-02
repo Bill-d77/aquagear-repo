@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { emailWhere } from "@/lib/validation";
 
 const schema = z.object({
   name: z.string().min(1),
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email().max(254),
   // max 72: bcrypt silently truncates beyond 72 bytes
   password: z.string().min(8).max(72),
 });
@@ -40,7 +41,8 @@ export async function POST(req: Request) {
     }
     const { name, email, password } = parsed.data;
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    // Case-insensitive: legacy rows may have been stored with capitals.
+    const existing = await prisma.user.findFirst(emailWhere(email));
     if (existing) {
       return NextResponse.json({ error: "Email already in use" }, { status: 409 });
     }

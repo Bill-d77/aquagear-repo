@@ -8,9 +8,10 @@ import { getStoreSettings } from "@/lib/settings";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
 import { getMobileUser } from "@/lib/mobile";
-import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { orderRateLimit, getClientIp } from "@/lib/rate-limit";
+import { shippingFieldsSchema } from "@/lib/validation";
 
-const orderSchema = z.object({
+const orderSchema = shippingFieldsSchema.extend({
   items: z
     .array(
       z.object({
@@ -20,12 +21,6 @@ const orderSchema = z.object({
     )
     .min(1)
     .max(50),
-  name: z.string().min(1),
-  city: z.string().min(1),
-  area: z.string().min(1),
-  phoneNumber: z.string().min(1),
-  apartment: z.string().optional(),
-  paymentMode: z.enum(["COD"]),
 });
 
 /**
@@ -35,7 +30,7 @@ const orderSchema = z.object({
  */
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const limit = rateLimit({ key: `morder:ip:${ip}`, max: 10, windowMs: 15 * 60 * 1000 });
+  const limit = orderRateLimit(ip);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many orders. Please try again later." },

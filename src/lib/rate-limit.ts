@@ -54,6 +54,9 @@ export function rateLimit({ key, max, windowMs }: RateLimitOptions): RateLimitRe
   return { ok: true, retryAfter: 0, remaining: max - fresh.length };
 }
 
+/** One order budget per IP shared by web checkout and the app: 10 per 15 minutes. */
+export const orderRateLimit = (ip: string) => rateLimit({ key: `order:ip:${ip}`, max: 10, windowMs: 15 * 60 * 1000 });
+
 /**
  * Best-effort client IP extraction from a Request. Falls back to "unknown"
  * so the limiter still bucket-groups requests that lack forwarded headers

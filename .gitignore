@@ -39,3 +39,7 @@ AUDIT_REPORT.md
 # Vercel-linked local env (OIDC token)
 .env.local
 .vercel
+
+# Local SQLite dev database (may contain user rows / password hashes)
+prisma/dev.db
+prisma/dev.db-journal

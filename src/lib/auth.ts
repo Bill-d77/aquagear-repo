@@ -5,6 +5,7 @@ import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { rateLimit, getClientIpFromHeaders } from "./rate-limit";
+import { emailWhere } from "./validation";
 
 // 10 login attempts per IP per 10 minutes, and 5 per (email) per 10 minutes.
 // The email bucket protects a specific account even if the attacker rotates IPs.
@@ -66,7 +67,8 @@ export const authConfig: NextAuthConfig = {
         }
 
         try {
-          const user = await prisma.user.findUnique({ where: { email } });
+          // Case-insensitive: "Bob@x.com" and "bob@x.com" are the same account.
+          const user = await prisma.user.findFirst(emailWhere(email));
           if (!user) {
             return null;
           }
