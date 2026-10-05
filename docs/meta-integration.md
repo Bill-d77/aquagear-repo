@@ -238,6 +238,15 @@ Progress (phase/chunk, `progress` 0–100) shows on Admin → Meta.
    token, subscribes the app, stores the credentials (encrypted) and starts
    contacts + history sync. All steps should show ✓.
 7. Re-link supported companion devices.
+7b. **Replace the 60-day token.** The Embedded Signup configuration available to
+   this app ("WhatsApp Embedded Signup Configuration With 60 Expiration Token")
+   issues tokens that expire after 60 days; Admin → Meta shows the date. The WABA
+   is in our own portfolio, so: Business Settings → System users → add/choose an
+   admin system user → assign Aquagear_app + the WhatsApp account → Generate token
+   (expiration **Never**, permissions `whatsapp_business_messaging`,
+   `whatsapp_business_management`) → set `WHATSAPP_ACCESS_TOKEN`,
+   `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID` in Vercel (env wins
+   over the stored token) → redeploy. Receiving messages never depends on the token.
 8. Manual test:
    - [ ] customer message → appears in Inbox
    - [ ] reply from the **phone** → appears as "Staff (phone)"

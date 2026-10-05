@@ -131,24 +131,26 @@ export interface WhatsAppCreds {
   phoneNumberId: string;
   wabaId: string;
   source: "env" | "signup" | "none";
+  /** Signup tokens expire (our Embedded Signup configuration issues 60-day tokens); env tokens are managed by hand. */
+  expiresAt: Date | null;
 }
 
 /** Env vars win (manual setup / rotation); otherwise the encrypted business token stored by Embedded Signup. */
 export async function getWhatsAppCreds(): Promise<WhatsAppCreds> {
   const cfg = metaConfig();
   if (cfg.whatsappToken && cfg.whatsappPhoneNumberId) {
-    return { token: cfg.whatsappToken, phoneNumberId: cfg.whatsappPhoneNumberId, wabaId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || "", source: "env" };
+    return { token: cfg.whatsappToken, phoneNumberId: cfg.whatsappPhoneNumberId, wabaId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || "", source: "env", expiresAt: null };
   }
   const row = await prisma.metaCredential.findUnique({ where: { key: WA_CRED_KEY } });
   if (row) {
     try {
       const c = JSON.parse(decrypt(row.value));
-      return { token: c.token, phoneNumberId: c.phoneNumberId, wabaId: c.wabaId, source: "signup" };
+      return { token: c.token, phoneNumberId: c.phoneNumberId, wabaId: c.wabaId, source: "signup", expiresAt: row.expiresAt };
     } catch {
       console.error("[meta] stored WhatsApp credentials could not be decrypted (AUTH_SECRET changed?) — reconnect from /admin/meta");
     }
   }
-  return { token: "", phoneNumberId: "", wabaId: "", source: "none" };
+  return { token: "", phoneNumberId: "", wabaId: "", source: "none", expiresAt: null };
 }
 
 export type SignupStep = { step: string; ok: boolean; detail?: string };
@@ -195,10 +197,14 @@ export async function completeCoexistenceSignup(code: string, wabaId: string): P
   steps.push({ step: "Subscribe app to webhooks", ok: sub.ok, detail: sub.ok ? undefined : sub.friendly });
 
   const value = encrypt(JSON.stringify({ token, phoneNumberId: number.id, wabaId }));
+  // The only Embedded Signup configuration Meta offers this app ("…With 60 Expiration Token")
+  // issues 60-day tokens; trust expires_in when Meta sends it. Replace with a permanent
+  // system-user token via WHATSAPP_* env vars before it lapses (Admin → Meta warns).
+  const expiresAt = new Date(Date.now() + (Number(body.expires_in) > 0 ? Number(body.expires_in) * 1000 : 60 * 24 * 60 * 60 * 1000));
   await prisma.metaCredential.upsert({
     where: { key: WA_CRED_KEY },
-    create: { key: WA_CRED_KEY, value, seedHash: "embedded-signup" },
-    update: { value, seedHash: "embedded-signup", expiresAt: null },
+    create: { key: WA_CRED_KEY, value, seedHash: "embedded-signup", expiresAt },
+    update: { value, seedHash: "embedded-signup", expiresAt },
   });
   steps.push({ step: "Store credentials (encrypted)", ok: true });
 

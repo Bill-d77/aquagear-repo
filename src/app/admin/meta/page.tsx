@@ -64,6 +64,11 @@ export default async function MetaPage({ searchParams }: { searchParams: Promise
           lines={[
             `Phone number ID: ${wa.phoneNumberId || "—"}`,
             `Token: ${maskSecret(wa.token) || "—"}${wa.source === "signup" ? " (from Embedded Signup)" : wa.source === "env" ? " (from env)" : ""}`,
+            ...(wa.expiresAt
+              ? [
+                  `${wa.expiresAt.getTime() - Date.now() < 14 * 24 * 60 * 60 * 1000 ? "⚠️ " : ""}Token expires ${wa.expiresAt.toLocaleDateString()} — before then, set a permanent system-user token as WHATSAPP_ACCESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID + WHATSAPP_BUSINESS_ACCOUNT_ID (receiving messages keeps working either way; sending and media stop)`,
+                ]
+              : []),
             `Conversations: ${convCounts.find((c) => c.channel === "WHATSAPP")?._count ?? 0}`,
           ]}
         />
