@@ -1,0 +1,24 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [{
+    "id": "102290129340398",
+    "changes": [{
+      "field": "history",
+      "value": {
+        "messaging_product": "whatsapp",
+        "metadata": { "display_phone_number": "96171000000", "phone_number_id": "106540352242922" },
+        "history": [{
+          "metadata": { "phase": 0, "chunk_order": 1, "progress": 55 },
+          "threads": [{
+            "id": "9613123456",
+            "messages": [
+              { "from": "9613123456", "id": "wamid.H1", "timestamp": "1780000000", "type": "text", "text": { "body": "baddi 2 masks" }, "history_context": { "status": "READ" } },
+              { "from": "96171000000", "id": "wamid.H2", "timestamp": "1780000060", "type": "text", "text": { "body": "Sure, delivery to Tripoli?" }, "history_context": { "status": "READ" } },
+              { "from": "96171000000", "id": "wamid.H3", "timestamp": "1780000070", "type": "media_placeholder", "history_context": { "status": "PLAYED" } }
+            ]
+          }]
+        }]
+      }
+    }]
+  }]
+}

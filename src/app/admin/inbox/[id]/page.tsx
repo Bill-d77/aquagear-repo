@@ -7,6 +7,7 @@ import { SourceBadge, StatusBadge, statusLabel } from "@/components/admin/OrderB
 import { AutoRefresh } from "@/components/admin/AutoRefresh";
 import { isDraftStatus } from "@/lib/order-status";
 import type { Extraction } from "@/lib/meta/extract";
+import { listTemplates } from "@/lib/meta/client";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Conversation · AquaGear Admin" };
@@ -33,6 +34,17 @@ export default async function ConversationPage({
   });
   if (!conv) return notFound();
 
+  // Same customer elsewhere (website/app orders), matched on the normalized phone.
+  const otherOrders = conv.phone
+    ? await prisma.order.findMany({
+        // OR null explicitly: SQL `NOT (conversationId = x)` is NULL — i.e. false — for website orders.
+        where: { phoneE164: conv.phone, OR: [{ conversationId: null }, { conversationId: { not: conv.id } }], status: { not: "PENDING" } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, status: true, total: true, source: true },
+      })
+    : [];
+
   // Opening the thread marks it read.
   if (conv.unreadCount > 0) {
     await prisma.conversation.update({ where: { id }, data: { unreadCount: 0, lastReadAt: new Date() } });
@@ -42,8 +54,15 @@ export default async function ConversationPage({
   const ex = conv.extraction as unknown as Extraction | null;
   const hasOpenDraft = conv.orders.some((o) => isDraftStatus(o.status));
   // Server component: renders once per request, so reading the clock here is intentional.
-  const canReply = !!conv.lastInboundAt && Date.now() - conv.lastInboundAt.getTime() < REPLY_WINDOW_MS;
-  const title = conv.name || (conv.username ? `@${conv.username}` : conv.phone || "Unknown customer");
+  const windowLeftMs = conv.lastInboundAt ? conv.lastInboundAt.getTime() + REPLY_WINDOW_MS - Date.now() : 0;
+  const canReply = windowLeftMs > 0;
+  const isWhatsApp = conv.channel === "WHATSAPP";
+  // The business's own contact name wins over the customer's WhatsApp profile name.
+  const title = conv.contactName || conv.name || (conv.username ? `@${conv.username}` : conv.phone || "Unknown customer");
+  const templates = !canReply && isWhatsApp ? await listTemplates() : [];
+  const maxParams = Math.max(0, ...templates.map((t) => t.params));
+  const sender = (m: { direction: string; sentBy: string | null }) =>
+    m.direction === "INBOUND" ? "Customer" : m.sentBy ? `Staff (dashboard: ${m.sentBy})` : `Staff (${isWhatsApp ? "phone" : "Instagram app"})`;
 
   return (
     <div className="space-y-4">
@@ -61,7 +80,12 @@ export default async function ConversationPage({
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">{title}</h1>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            {[conv.username && conv.name ? `@${conv.username}` : null, conv.phone, statusLabel(conv.status)].filter(Boolean).join(" · ")}
+            {[
+              conv.contactName && conv.name && conv.name !== conv.contactName ? `WhatsApp name: ${conv.name}` : null,
+              conv.username && conv.name ? `@${conv.username}` : null,
+              conv.phone,
+              statusLabel(conv.status),
+            ].filter(Boolean).join(" · ")}
           </p>
         </div>
         {conv.status !== "CLOSED" && (
@@ -107,13 +131,17 @@ export default async function ConversationPage({
                       </a>
                     )}
                     {m.type === "REACTION" && <span className="text-xs opacity-80">Reacted </span>}
-                    {m.type === "UNKNOWN" && !m.text && <span className="italic opacity-80">Unsupported message type</span>}
+                    {m.type === "UNKNOWN" && !m.text && (
+                      <span className="italic opacity-80">
+                        {meta.originalType === "media_placeholder" ? "Media from chat history (not yet imported)" : "Unsupported message type"}
+                      </span>
+                    )}
                     {/* Customer text is untrusted: rendered as a React text node (escaped), never as HTML. */}
                     {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
                     <div className={`text-[11px] mt-1 ${out ? "text-sky-100" : "text-gray-500"}`}>
-                      {m.externalTimestamp.toLocaleString()}
+                      {sender(m)} · {m.externalTimestamp.toLocaleString()}
                       {out && m.status && ` · ${m.status}`}
-                      {out && m.sentBy && ` · ${m.sentBy}`}
+                      {m.isHistorical && " · imported history"}
                     </div>
                   </div>
                 </div>
@@ -122,7 +150,59 @@ export default async function ConversationPage({
             {messages.length === 0 && <p className="text-center text-sm text-gray-500 py-8">No messages yet.</p>}
           </div>
 
-          <form action="/api/admin/meta/reply" method="post" className="border-t p-3 flex gap-2 items-end">
+          <div className="border-t px-3 pt-2 text-xs text-gray-600 space-y-0.5">
+            <p>
+              {canReply
+                ? `Free-form reply allowed — window closes in ${Math.floor(windowLeftMs / 3_600_000)}h ${Math.floor((windowLeftMs % 3_600_000) / 60_000)}m.`
+                : "Reply window closed — Meta only allows approved template messages from the dashboard until the customer writes again."}
+            </p>
+            {isWhatsApp && (
+              <p className="text-gray-500">
+                The 24h window only limits dashboard replies. Staff can always reply from the WhatsApp Business app on the phone — those replies appear here automatically.
+              </p>
+            )}
+          </div>
+          {!canReply && isWhatsApp && (
+            <form action="/api/admin/meta/reply" method="post" className="px-3 pt-2 space-y-2">
+              <input type="hidden" name="conversationId" value={conv.id} />
+              {templates.length === 0 ? (
+                <p className="text-xs text-gray-500">No approved text templates found for this WhatsApp account (create them in WhatsApp Manager).</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <label className="flex-1 min-w-[12rem]">
+                      <span className="block text-xs text-gray-500 mb-1">Approved template</span>
+                      <select name="template" required className="w-full border border-gray-300 rounded-md p-2 text-sm">
+                        {templates.map((t) => (
+                          <option key={`${t.name}|${t.language}`} value={`${t.name}|${t.language}`}>
+                            {t.name} ({t.language}){t.params ? ` · ${t.params} value${t.params > 1 ? "s" : ""}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {Array.from({ length: maxParams }, (_, i) => (
+                      <label key={i} className="w-32">
+                        <span className="block text-xs text-gray-500 mb-1">{`Value {{${i + 1}}}`}</span>
+                        <input name="param" maxLength={500} className="w-full border border-gray-300 rounded-md p-2 text-sm" />
+                      </label>
+                    ))}
+                    <button className="btn-primary text-sm">Send template</button>
+                  </div>
+                  <details className="text-xs text-gray-600">
+                    <summary className="cursor-pointer text-sky-700">Template texts</summary>
+                    <ul className="mt-1 space-y-1">
+                      {templates.map((t) => (
+                        <li key={`${t.name}|${t.language}`}>
+                          <b>{t.name}</b>: <span className="whitespace-pre-wrap">{t.body}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </>
+              )}
+            </form>
+          )}
+          <form action="/api/admin/meta/reply" method="post" className="p-3 flex gap-2 items-end">
             <input type="hidden" name="conversationId" value={conv.id} />
             <label htmlFor="reply" className="sr-only">Reply</label>
             <textarea
@@ -192,6 +272,20 @@ export default async function ConversationPage({
               </Link>
             ))}
           </div>
+
+          {otherOrders.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
+              <h2 className="font-semibold text-gray-900">Other orders on this number</h2>
+              {otherOrders.map((o) => (
+                <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center justify-between gap-2 text-sm hover:text-sky-700">
+                  <span className="font-medium">#{o.id.slice(0, 8).toUpperCase()}</span>
+                  <SourceBadge source={o.source} />
+                  <span className="text-gray-500">${(o.total / 100).toFixed(2)}</span>
+                  <StatusBadge status={o.status} />
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

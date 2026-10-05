@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi, redirectWithError } from "@/lib/admin";
-import { isDraftStatus } from "@/lib/order-status";
-import { changeOrderStatus, InsufficientStockError } from "@/lib/order-transitions";
+import { DRAFT_STATUSES, isDraftStatus } from "@/lib/order-status";
+import { changeOrderStatus, InsufficientStockError, OrderChangedError } from "@/lib/order-transitions";
 import { deliveryFeeFor, MAX_CART_QUANTITY } from "@/lib/cart";
 import { getStoreSettings } from "@/lib/settings";
+import { toE164 } from "@/lib/phone";
 
 const text = (max: number) => z.string().trim().max(max).transform((v) => v || null);
 const schema = z.object({
@@ -49,6 +50,16 @@ export async function POST(req: Request) {
   const ids = form.getAll("itemProductId").map(String);
   const qtys = form.getAll("itemQuantity").map(String);
   const prices = form.getAll("itemPrice").map(String);
+  // Rows the detector couldn't match ("pick the product") that still have a
+  // quantity but no product: confirming would silently drop them.
+  const kinds = form.getAll("itemKind").map(String);
+  const unresolvedTexts = form.getAll("itemText").map(String);
+  let u = 0;
+  const unresolved = kinds.flatMap((kind, i) => {
+    if (kind !== "unresolved") return [];
+    const text = unresolvedTexts[u++] ?? "an item";
+    return !ids[i] && Number(qtys[i]) > 0 ? [text] : [];
+  });
   const parsed = schema.safeParse({
     id: form.get("id"),
     intent: form.get("intent"),
@@ -74,8 +85,15 @@ export async function POST(req: Request) {
   if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!isDraftStatus(order.status)) return redirectWithError(req, back, "This order has already been reviewed.");
 
+  const alreadyReviewed = () => redirectWithError(req, back, "This order has already been reviewed.");
+
   if (intent === "reject") {
-    await changeOrderStatus(id, "CANCELED");
+    try {
+      await changeOrderStatus(id, "CANCELED", DRAFT_STATUSES);
+    } catch (e) {
+      if (e instanceof OrderChangedError) return alreadyReviewed();
+      throw e;
+    }
     await prisma.orderAudit.create({ data: { orderId: id, actor, action: `Draft rejected (${order.status} → CANCELED)` } });
     if (order.conversationId) await prisma.conversation.update({ where: { id: order.conversationId }, data: { status: "OPEN" } });
     return NextResponse.redirect(new URL(back, req.url));
@@ -108,23 +126,35 @@ export async function POST(req: Request) {
 
   const { shippingFlatRate } = await getStoreSettings();
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  await prisma.$transaction(async (tx) => {
-    await tx.orderItem.deleteMany({ where: { orderId: id } });
-    await tx.order.update({
-      where: { id },
-      data: { ...fields, total: subtotal + deliveryFeeFor(subtotal, shippingFlatRate), items: { create: items } },
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Status-guarded: row-locks the draft, and refuses if another admin confirmed/rejected it meanwhile.
+      const claimed = await tx.order.updateMany({
+        where: { id, status: { in: [...DRAFT_STATUSES] } },
+        data: { ...fields, phoneE164: toE164(fields.phoneNumber), total: subtotal + deliveryFeeFor(subtotal, shippingFlatRate) },
+      });
+      if (claimed.count !== 1) throw new OrderChangedError();
+      await tx.orderItem.deleteMany({ where: { orderId: id } });
+      await tx.orderItem.createMany({ data: items.map((i) => ({ ...i, orderId: id })) });
+      if (changes.length) await tx.orderAudit.create({ data: { orderId: id, actor, action: "Draft edited", detail: changes.join("\n").slice(0, 4000) } });
     });
-    if (changes.length) await tx.orderAudit.create({ data: { orderId: id, actor, action: "Draft edited", detail: changes.join("\n").slice(0, 4000) } });
-  });
+  } catch (e) {
+    if (e instanceof OrderChangedError) return alreadyReviewed();
+    throw e;
+  }
 
   if (intent === "confirm") {
     const missing = [!items.length && "at least one item", !fields.phoneNumber && "phone", !fields.location && "delivery location"].filter(Boolean);
     if (missing.length) return redirectWithError(req, back, `Saved. To confirm, add: ${missing.join(", ")}.`);
+    if (unresolved.length) {
+      return redirectWithError(req, back, `Saved. To confirm, pick a product (or set quantity 0) for: ${unresolved.map((t) => `“${t.slice(0, 60)}”`).join(", ")}.`);
+    }
     try {
-      // Same transition website orders use: validates and decrements stock atomically.
-      await changeOrderStatus(id, "PLACED");
+      // Same transition website orders use: validates and decrements stock atomically, once.
+      await changeOrderStatus(id, "PLACED", DRAFT_STATUSES);
     } catch (e) {
       if (e instanceof InsufficientStockError) return redirectWithError(req, back, `Saved, but not confirmed: insufficient stock for ${e.message}.`);
+      if (e instanceof OrderChangedError) return alreadyReviewed();
       throw e;
     }
     await prisma.orderAudit.create({ data: { orderId: id, actor, action: `Draft confirmed (${order.status} → PLACED)`, detail: `Total ${money(subtotal + deliveryFeeFor(subtotal, shippingFlatRate))}` } });

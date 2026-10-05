@@ -7,6 +7,7 @@ import { refreshDraft } from "@/lib/meta/ingest";
 import { DRAFT_STATUSES } from "@/lib/order-status";
 import { deliveryFeeFor } from "@/lib/cart";
 import { getStoreSettings } from "@/lib/settings";
+import { toE164 } from "@/lib/phone";
 
 const schema = z.object({ id: z.string().min(1), intent: z.enum(["detect", "draft", "close"]) });
 
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
       status: "NEEDS_REVIEW",
       name: conv.name,
       phoneNumber: conv.phone,
+      phoneE164: toE164(conv.phone),
       total: deliveryFeeFor(0, shippingFlatRate),
       audits: { create: { actor: guard.user?.email ?? "admin", action: "Draft created manually from conversation" } },
     },

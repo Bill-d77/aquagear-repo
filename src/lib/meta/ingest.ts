@@ -10,11 +10,12 @@ import { prisma } from "@/lib/prisma";
 import { getStoreSettings } from "@/lib/settings";
 import { deliveryFeeFor } from "@/lib/cart";
 import { DRAFT_STATUSES } from "@/lib/order-status";
-import { notifyNewOrder } from "@/lib/telegram";
-import { normalizeWebhook, type NormalizedEvent, type NormalizedMessage } from "./normalize";
+import { notifyNewOrder, notifyAdmin } from "@/lib/telegram";
+import { normalizeWebhook, type AccountEvent, type ContactSync, type NormalizedEvent, type NormalizedMessage } from "./normalize";
 import { extractOrder, type CatalogProduct, type Extraction } from "./extract";
 import { fetchInstagramProfile } from "./client";
 import { sha256 } from "./signature";
+import { toE164 } from "@/lib/phone";
 
 const MAX_RETRIES = 6; // 1, 2, 4, 8, 16, 32 minutes
 const LEASE_MS = 5 * 60 * 1000;
@@ -25,7 +26,7 @@ const isUniqueViolation = (e: unknown) => e instanceof Prisma.PrismaClientKnownR
 /** Persist a verified delivery. Returns null when it's a duplicate (Meta retry). */
 export async function recordWebhook(rawBody: string, payload: unknown): Promise<{ id: string; actionable: boolean } | null> {
   const ev = normalizeWebhook(payload);
-  const actionable = ev.messages.length > 0 || ev.statuses.length > 0;
+  const actionable = ev.messages.length + ev.statuses.length + ev.contacts.length + ev.account.length > 0;
   try {
     const row = await prisma.metaWebhookEvent.create({
       data: {
@@ -68,11 +69,14 @@ export async function processEvent(id: string): Promise<void> {
     const { inboundConversations, newInstagram } = await applyEvent(ev);
     for (const conversationId of newInstagram) await enrichInstagramProfile(conversationId);
     for (const conversationId of inboundConversations) await refreshDraft(conversationId);
+    await applyContacts(ev.contacts);
     await prisma.metaWebhookEvent.update({
       where: { id },
       data: { status: "PROCESSED", processedAt: new Date(), nextRetryAt: null, error: null },
     });
-    console.info(`[meta] event ${id} processed: ${ev.channel} ${ev.eventType} (${ev.messages.length} msg, ${ev.statuses.length} status)`);
+    // After PROCESSED, so a retry of a failed event can't alert twice.
+    for (const a of ev.account) await alertAccountEvent(a);
+    console.info(`[meta] event ${id} processed: ${ev.channel} ${ev.eventType} (${ev.messages.length} msg, ${ev.statuses.length} status, ${ev.contacts.length} contacts)`);
   } catch (e) {
     const retryCount = event.retryCount + 1;
     const message = (e instanceof Error ? e.message : String(e)).slice(0, 500);
@@ -133,6 +137,11 @@ async function applyEvent(ev: NormalizedEvent) {
   const newInstagram = new Set<string>();
 
   for (const m of [...ev.messages].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())) {
+    // History media for a business-sent placeholder: no customer id, only fills the placeholder in.
+    if (!m.customerId) {
+      if (m.historical) await fillHistoryPlaceholder(m);
+      continue;
+    }
     const { conversation, created } = await upsertConversation(m);
     if (created && m.channel === "INSTAGRAM") newInstagram.add(conversation.id);
 
@@ -145,15 +154,25 @@ async function applyEvent(ev: NormalizedEvent) {
           type: m.type,
           text: m.text,
           metadata: (m.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+          isHistorical: m.historical ?? false,
           externalTimestamp: m.timestamp,
         },
       });
     } catch (e) {
-      if (isUniqueViolation(e)) continue; // already stored (retry, or our own reply echoed back)
-      throw e;
+      if (!isUniqueViolation(e)) throw e;
+      // Already stored (retry, or our own reply echoed back) — or a history
+      // placeholder whose media just arrived.
+      if (m.historical) await fillHistoryPlaceholder(m);
+      continue;
     }
 
     const newer = m.timestamp > conversation.lastMessageAt;
+    if (m.historical) {
+      // Imported past chats only sort the inbox: no unread badge, no reply
+      // window, no status change and no order detection.
+      if (newer) await prisma.conversation.update({ where: { id: conversation.id }, data: { lastMessageAt: m.timestamp } });
+      continue;
+    }
     const keepStatus = conversation.status === "ORDER_DETECTED";
     await prisma.conversation.update({
       where: { id: conversation.id },
@@ -165,7 +184,14 @@ async function applyEvent(ev: NormalizedEvent) {
               ...(newer ? { lastMessageAt: m.timestamp } : {}),
               ...(keepStatus ? {} : { status: "WAITING_FOR_ADMIN" }),
             }
-          : { ...(newer ? { lastMessageAt: m.timestamp } : {}), ...(keepStatus ? {} : { status: "WAITING_FOR_CUSTOMER" }) },
+          : {
+              // A reply from the phone app means staff have seen the chat.
+              // It never touches lastInboundAt: only customer messages open
+              // the Cloud API 24h window.
+              unreadCount: 0,
+              ...(newer ? { lastMessageAt: m.timestamp } : {}),
+              ...(keepStatus ? {} : { status: "WAITING_FOR_CUSTOMER" }),
+            },
     });
     if (m.direction === "INBOUND" && DETECTION_TYPES.has(m.type)) inboundConversations.add(conversation.id);
   }
@@ -189,13 +215,19 @@ async function applyEvent(ev: NormalizedEvent) {
 
 async function upsertConversation(m: NormalizedMessage, retried = false) {
   const where = { channel_externalUserId: { channel: m.channel, externalUserId: m.customerId } };
-  const existing = await prisma.conversation.findUnique({ where });
+  // The BSUID finds the thread when Meta sent the phone one time and withheld it another.
+  const existing =
+    (await prisma.conversation.findUnique({ where })) ??
+    (m.bsuid ? await prisma.conversation.findUnique({ where: { channel_bsuid: { channel: m.channel, bsuid: m.bsuid } } }) : null);
   if (existing) {
     const patch = {
       ...(m.customerName && m.customerName !== existing.name ? { name: m.customerName } : {}),
       ...(m.customerPhone && !existing.phone ? { phone: m.customerPhone } : {}),
+      ...(m.bsuid && !existing.bsuid ? { bsuid: m.bsuid } : {}),
     };
-    const conversation = Object.keys(patch).length ? await prisma.conversation.update({ where, data: patch }) : existing;
+    const conversation = Object.keys(patch).length
+      ? await prisma.conversation.update({ where: { id: existing.id }, data: patch })
+      : existing;
     return { conversation, created: false };
   }
   try {
@@ -203,6 +235,7 @@ async function upsertConversation(m: NormalizedMessage, retried = false) {
       data: {
         channel: m.channel,
         externalUserId: m.customerId,
+        bsuid: m.bsuid ?? null,
         name: m.customerName ?? null,
         phone: m.customerPhone ?? null,
         lastMessageAt: new Date(0), // bumped by the first message below
@@ -214,6 +247,45 @@ async function upsertConversation(m: NormalizedMessage, retried = false) {
     if (isUniqueViolation(e) && !retried) return upsertConversation(m, true);
     throw e;
   }
+}
+
+/** History media arriving after its `media_placeholder`: fill the stored placeholder in. */
+async function fillHistoryPlaceholder(m: NormalizedMessage) {
+  if (m.type === "UNKNOWN") return;
+  await prisma.message.updateMany({
+    where: { externalMessageId: m.externalMessageId, isHistorical: true, type: "UNKNOWN" },
+    data: { type: m.type, text: m.text, metadata: (m.metadata ?? undefined) as Prisma.InputJsonValue | undefined },
+  });
+}
+
+/**
+ * Names from the phone's WhatsApp contacts (smb_app_state_sync). Contacts sync
+ * before history, so a contact without a thread gets an empty one that the
+ * inbox hides until it has messages — then imported chats show the name.
+ * Only `contactName` is written; the profile name and admin edits are untouched.
+ */
+async function applyContacts(contacts: ContactSync[]) {
+  for (const c of contacts) {
+    await prisma.conversation.upsert({
+      where: { channel_externalUserId: { channel: "WHATSAPP", externalUserId: c.waId } },
+      update: { contactName: c.name },
+      create: { channel: "WHATSAPP", externalUserId: c.waId, phone: `+${c.waId}`, contactName: c.name, lastMessageAt: new Date(0) },
+    });
+  }
+}
+
+const ACCOUNT_ALERTS: Record<string, string> = {
+  ACCOUNT_OFFBOARDED: "⚠️ WhatsApp coexistence disconnected: the number was re-registered or moved to another phone. Dashboard messaging is paused until it reconnects.",
+  PARTNER_REMOVED: "⚠️ WhatsApp coexistence disconnected: the number is no longer shared with the Meta app.",
+  ACCOUNT_RECONNECTED: "✅ WhatsApp coexistence reconnected — the dashboard is receiving messages again.",
+};
+
+async function alertAccountEvent(a: AccountEvent) {
+  const text = ACCOUNT_ALERTS[a.event];
+  if (!text) return;
+  const reason = a.reason === "PRIMARY_INACTIVITY" ? " Reason: the phone app wasn't opened for about 14 days." : a.reason ? ` Reason: ${a.reason}.` : "";
+  console.warn(`[meta] account_update ${a.event}${a.reason ? ` (${a.reason})` : ""}`);
+  await notifyAdmin(`${text}${reason} Details: /admin/meta`);
 }
 
 async function enrichInstagramProfile(conversationId: string) {
@@ -263,7 +335,8 @@ export async function refreshDraft(conversationId: string): Promise<string | nul
         ),
       );
       const recent = await tx.message.findMany({
-        where: { conversationId, externalTimestamp: { gt: since } },
+        // Imported history is never order context: those orders were handled on the phone before onboarding.
+        where: { conversationId, isHistorical: false, externalTimestamp: { gt: since } },
         orderBy: { externalTimestamp: "desc" },
         take: WINDOW_MESSAGES,
         select: { direction: true, text: true, type: true, metadata: true },
@@ -369,6 +442,7 @@ function draftFields(
       status: ex.confidence === "HIGH" ? "PENDING_CONFIRMATION" : "NEEDS_REVIEW",
       name: ex.name ?? conv.name,
       phoneNumber: ex.phone ?? conv.phone,
+      phoneE164: toE164(ex.phone ?? conv.phone),
       location: ex.location,
       apartment: ex.addressDetails,
       notes: notes.length ? notes.join("\n").slice(0, 2000) : null,

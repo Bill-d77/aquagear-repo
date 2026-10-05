@@ -122,15 +122,122 @@ export async function refreshInstagramTokenIfDue(): Promise<string> {
   return "instagram token refreshed";
 }
 
+// ── WhatsApp credentials (from Embedded Signup, or env) ─────────────────────
+
+const WA_CRED_KEY = "whatsapp";
+
+export interface WhatsAppCreds {
+  token: string;
+  phoneNumberId: string;
+  wabaId: string;
+  source: "env" | "signup" | "none";
+}
+
+/** Env vars win (manual setup / rotation); otherwise the encrypted business token stored by Embedded Signup. */
+export async function getWhatsAppCreds(): Promise<WhatsAppCreds> {
+  const cfg = metaConfig();
+  if (cfg.whatsappToken && cfg.whatsappPhoneNumberId) {
+    return { token: cfg.whatsappToken, phoneNumberId: cfg.whatsappPhoneNumberId, wabaId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || "", source: "env" };
+  }
+  const row = await prisma.metaCredential.findUnique({ where: { key: WA_CRED_KEY } });
+  if (row) {
+    try {
+      const c = JSON.parse(decrypt(row.value));
+      return { token: c.token, phoneNumberId: c.phoneNumberId, wabaId: c.wabaId, source: "signup" };
+    } catch {
+      console.error("[meta] stored WhatsApp credentials could not be decrypted (AUTH_SECRET changed?) — reconnect from /admin/meta");
+    }
+  }
+  return { token: "", phoneNumberId: "", wabaId: "", source: "none" };
+}
+
+export type SignupStep = { step: string; ok: boolean; detail?: string };
+
+/**
+ * Finish WhatsApp Business app (coexistence) onboarding after Embedded Signup:
+ * exchange the 30-second code for a business token, find the number, subscribe
+ * this app to the WABA's webhooks, store the credentials encrypted, then start
+ * contacts → history sync (Meta allows this once, within 24h of onboarding).
+ * Coexistence numbers are already registered, so /register is skipped.
+ */
+export async function completeCoexistenceSignup(code: string, wabaId: string): Promise<SignupStep[]> {
+  const cfg = metaConfig();
+  const steps: SignupStep[] = [];
+  if (!cfg.appId || !cfg.appSecret) return [{ step: "Configuration", ok: false, detail: "META_APP_ID and META_APP_SECRET must be set" }];
+
+  // Token exchange: Meta takes these as query params; the URL is never logged.
+  const res = await fetch(
+    `${fb("oauth/access_token")}?${new URLSearchParams({ client_id: cfg.appId, client_secret: cfg.appSecret, code })}`,
+    { signal: AbortSignal.timeout(10_000) },
+  ).catch(() => null);
+  const body = res ? await res.json().catch(() => ({})) : {};
+  const token = typeof body.access_token === "string" ? body.access_token : "";
+  steps.push({ step: "Exchange signup code", ok: !!token, detail: token ? undefined : friendly(body?.error?.code, res?.status ?? 0) });
+  if (!token) {
+    console.error(`[meta] signup token exchange failed: ${res?.status ?? "network"} code=${body?.error?.code ?? "-"}`);
+    return steps;
+  }
+
+  const numbers = await graph<{ data?: { id: string; display_phone_number?: string; is_on_biz_app?: boolean; platform_type?: string }[] }>(
+    fb(`${encodeURIComponent(wabaId)}/phone_numbers?fields=id,display_phone_number,is_on_biz_app,platform_type`),
+    token,
+  );
+  const list = numbers.ok ? numbers.data.data ?? [] : [];
+  const number = list.find((n) => n.is_on_biz_app) ?? list[0];
+  steps.push({
+    step: "Find phone number",
+    ok: !!number,
+    detail: number ? `${number.display_phone_number ?? number.id}${number.is_on_biz_app ? " · on WhatsApp Business app" : " · not reported as on the app"}` : numbers.ok ? "No number on this account" : numbers.friendly,
+  });
+  if (!number) return steps;
+
+  const sub = await graph<{ success?: boolean }>(fb(`${encodeURIComponent(wabaId)}/subscribed_apps`), token, { method: "POST" });
+  steps.push({ step: "Subscribe app to webhooks", ok: sub.ok, detail: sub.ok ? undefined : sub.friendly });
+
+  const value = encrypt(JSON.stringify({ token, phoneNumberId: number.id, wabaId }));
+  await prisma.metaCredential.upsert({
+    where: { key: WA_CRED_KEY },
+    create: { key: WA_CRED_KEY, value, seedHash: "embedded-signup" },
+    update: { value, seedHash: "embedded-signup", expiresAt: null },
+  });
+  steps.push({ step: "Store credentials (encrypted)", ok: true });
+
+  steps.push(...(await requestSmbSync(["smb_app_state_sync", "history"])));
+  return steps;
+}
+
+/** Ask Meta to send contacts and/or chat history via webhooks (contacts first, per Meta). */
+export async function requestSmbSync(types: ("smb_app_state_sync" | "history")[]): Promise<SignupStep[]> {
+  const { token, phoneNumberId } = await getWhatsAppCreds();
+  if (!token || !phoneNumberId) return [{ step: "Sync", ok: false, detail: "WhatsApp is not connected" }];
+  const steps: SignupStep[] = [];
+  for (const sync_type of types) {
+    const r = await graph<{ request_id?: string }>(fb(`${phoneNumberId}/smb_app_data`), token, {
+      method: "POST",
+      body: JSON.stringify({ messaging_product: "whatsapp", sync_type }),
+    });
+    steps.push({
+      step: sync_type === "history" ? "Start chat history sync" : "Start contacts sync",
+      ok: r.ok,
+      detail: r.ok ? undefined : `${r.friendly} (${r.message})`,
+    });
+  }
+  return steps;
+}
+
 // ── Messaging ───────────────────────────────────────────────────────────────
+
+/** Phone numbers go in `to`; a business-scoped user id ("LB.123…", phone withheld) in `recipient`. */
+const waAddress = (customerId: string) => (customerId.includes(".") ? { recipient: customerId } : { to: customerId });
 
 export async function sendText(channel: Channel, customerId: string, text: string): Promise<GraphResult<{ id: string }>> {
   const cfg = metaConfig();
   if (channel === "WHATSAPP") {
-    if (!cfg.whatsappPhoneNumberId || !cfg.whatsappToken) return notConfigured("WhatsApp");
-    const res = await graph<{ messages?: { id: string }[] }>(fb(`${cfg.whatsappPhoneNumberId}/messages`), cfg.whatsappToken, {
+    const wa = await getWhatsAppCreds();
+    if (!wa.phoneNumberId || !wa.token) return notConfigured("WhatsApp");
+    const res = await graph<{ messages?: { id: string }[] }>(fb(`${wa.phoneNumberId}/messages`), wa.token, {
       method: "POST",
-      body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: customerId, type: "text", text: { preview_url: false, body: text } }),
+      body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", ...waAddress(customerId), type: "text", text: { preview_url: false, body: text } }),
     });
     return res.ok ? { ok: true, data: { id: res.data.messages?.[0]?.id ?? "" } } : res;
   }
@@ -141,6 +248,62 @@ export async function sendText(channel: Channel, customerId: string, text: strin
     body: JSON.stringify({ recipient: { id: customerId }, message: { text } }),
   });
   return res.ok ? { ok: true, data: { id: res.data.message_id ?? "" } } : res;
+}
+
+// ── WhatsApp templates (the only messages allowed outside the 24h window) ───
+
+export interface WhatsAppTemplate {
+  name: string;
+  language: string;
+  body: string; // BODY component text with {{1}}… placeholders
+  params: number;
+}
+
+// ponytail: per-instance 10-minute cache so the auto-refreshing inbox doesn't
+// call Graph every 10s. New/edited templates show up within 10 minutes.
+let templateCache: { at: number; list: WhatsAppTemplate[] } | null = null;
+
+/** Approved templates of the connected WABA (text-only bodies; header/button media templates are skipped). */
+export async function listTemplates(): Promise<WhatsAppTemplate[]> {
+  if (templateCache && Date.now() - templateCache.at < 10 * 60_000) return templateCache.list;
+  const { token, wabaId } = await getWhatsAppCreds();
+  if (!token || !wabaId) return [];
+  const res = await graph<{ data?: { name: string; language: string; status: string; components?: { type: string; format?: string; text?: string }[] }[] }>(
+    fb(`${encodeURIComponent(wabaId)}/message_templates?fields=name,language,status,components&status=APPROVED&limit=100`),
+    token,
+  );
+  if (!res.ok) return templateCache?.list ?? [];
+  const list = (res.data.data ?? [])
+    .filter((t) => t.status === "APPROVED" && !(t.components ?? []).some((c) => c.type === "HEADER" && c.format && c.format !== "TEXT"))
+    .flatMap((t) => {
+      const body = t.components?.find((c) => c.type === "BODY")?.text ?? "";
+      const header = t.components?.find((c) => c.type === "HEADER")?.text ?? "";
+      if (/\{\{/.test(header)) return []; // header variables not supported in this simple picker
+      const params = new Set(body.match(/\{\{\d+\}\}/g) ?? []).size;
+      return [{ name: t.name, language: t.language, body, params }];
+    });
+  templateCache = { at: Date.now(), list };
+  return list;
+}
+
+/** Send an approved template with positional body parameters. */
+export async function sendTemplate(to: string, name: string, language: string, params: string[]): Promise<GraphResult<{ id: string }>> {
+  const wa = await getWhatsAppCreds();
+  if (!wa.phoneNumberId || !wa.token) return notConfigured("WhatsApp");
+  const res = await graph<{ messages?: { id: string }[] }>(fb(`${wa.phoneNumberId}/messages`), wa.token, {
+    method: "POST",
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      ...waAddress(to),
+      type: "template",
+      template: {
+        name,
+        language: { code: language },
+        ...(params.length ? { components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }] } : {}),
+      },
+    }),
+  });
+  return res.ok ? { ok: true, data: { id: res.data.messages?.[0]?.id ?? "" } } : res;
 }
 
 export async function fetchInstagramProfile(igsid: string): Promise<{ name?: string; username?: string } | null> {
@@ -157,7 +320,7 @@ const IG_MEDIA_HOSTS = /(?:^|\.)(?:fbcdn\.net|fbsbx\.com|cdninstagram\.com)$/;
 export async function fetchMedia(channel: string, metadata: Record<string, any> | null): Promise<Response | null> {
   if (channel === "WHATSAPP") {
     const mediaId = metadata?.mediaId;
-    const { whatsappToken } = metaConfig();
+    const { token: whatsappToken } = await getWhatsAppCreds();
     if (typeof mediaId !== "string" || !whatsappToken) return null;
     const info = await graph<{ url?: string; file_size?: number }>(fb(encodeURIComponent(mediaId)), whatsappToken);
     if (!info.ok || !info.data.url || (info.data.file_size ?? 0) > MAX_MEDIA_BYTES) return null;
@@ -188,15 +351,19 @@ export interface ChannelHealth {
 }
 
 export async function checkHealth(): Promise<Record<Channel, ChannelHealth>> {
-  const cfg = metaConfig();
+  const creds = await getWhatsAppCreds();
   const wa: Promise<ChannelHealth> =
-    cfg.whatsappPhoneNumberId && cfg.whatsappToken
-      ? graph<{ display_phone_number?: string; verified_name?: string }>(
-          fb(`${cfg.whatsappPhoneNumberId}?fields=display_phone_number,verified_name`),
-          cfg.whatsappToken,
+    creds.phoneNumberId && creds.token
+      ? graph<{ display_phone_number?: string; verified_name?: string; is_on_biz_app?: boolean; platform_type?: string }>(
+          fb(`${creds.phoneNumberId}?fields=display_phone_number,verified_name,is_on_biz_app,platform_type`),
+          creds.token,
         ).then((r) =>
           r.ok
-            ? { state: "connected", label: `${r.data.verified_name ?? ""} ${r.data.display_phone_number ?? ""}`.trim() || "Connected" }
+            ? {
+                state: "connected",
+                label: `${r.data.verified_name ?? ""} ${r.data.display_phone_number ?? ""}`.trim() || "Connected",
+                detail: `is_on_biz_app=${r.data.is_on_biz_app ?? "?"} platform_type=${r.data.platform_type ?? "?"}`,
+              }
             : { state: "error", label: r.friendly, detail: `${r.status} code=${r.code ?? "-"} ${r.message}` },
         )
       : Promise.resolve({ state: "not_configured", label: "Not configured" });

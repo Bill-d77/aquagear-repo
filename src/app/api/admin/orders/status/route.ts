@@ -2,8 +2,8 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { requireAdminApi, redirectWithError } from "@/lib/admin";
 import { orderStatusSchema } from "@/lib/validation";
-import { changeOrderStatus, InsufficientStockError, OrderNotFoundError } from "@/lib/order-transitions";
-import { isDraftStatus } from "@/lib/order-status";
+import { changeOrderStatus, InsufficientStockError, OrderChangedError, OrderNotFoundError } from "@/lib/order-transitions";
+import { isDraftStatus, ORDER_STATUSES } from "@/lib/order-status";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
@@ -29,8 +29,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    await changeOrderStatus(id, status.data);
+    // Drafts only leave draft state through the review route — even if one is reviewed mid-request.
+    await changeOrderStatus(id, status.data, ORDER_STATUSES);
   } catch (e) {
+    if (e instanceof OrderChangedError) {
+      return redirectWithError(req, back, "This order was just changed by someone else — reload and try again.");
+    }
     if (e instanceof InsufficientStockError) {
       return redirectWithError(req, back, `Cannot reactivate: insufficient stock for ${e.message}`);
     }

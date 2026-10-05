@@ -10,6 +10,11 @@ export const metaConfig = () => ({
   // WhatsApp deliveries are signed with the Meta app secret; Instagram-Login
   // deliveries with the Instagram app secret. Either may be set.
   webhookSecrets: [process.env.META_APP_SECRET, process.env.INSTAGRAM_APP_SECRET].filter((s): s is string => !!s),
+  // Embedded Signup (connect the WhatsApp Business app number from /admin/meta).
+  appId: process.env.META_APP_ID || "",
+  appSecret: process.env.META_APP_SECRET || "",
+  embeddedSignupConfigId: process.env.META_ES_CONFIG_ID || "",
+  // Optional overrides; normally stored by Embedded Signup (MetaCredential "whatsapp").
   whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "",
   whatsappToken: process.env.WHATSAPP_ACCESS_TOKEN || "",
   instagramAccountId: process.env.INSTAGRAM_ACCOUNT_ID || "",

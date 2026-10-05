@@ -12,6 +12,7 @@ override with `META_GRAPH_API_VERSION`).
 
 Sections: [Architecture](#architecture) · [Data model](#data-model) ·
 [Webhooks](#webhooks) · [WhatsApp setup](#whatsapp-setup) ·
+[WhatsApp Business app (coexistence)](#whatsapp-business-app-coexistence) ·
 [Instagram setup](#instagram-setup) · [Order processing](#order-processing) ·
 [Admin workflow](#admin-workflow) · [Security](#security) ·
 [Privacy & retention](#privacy--retention) · [Local development](#local-development) ·
@@ -78,6 +79,23 @@ stay valid — every existing order gets `source = 'WEBSITE'`).
 - **MetaCredential**: the refreshed Instagram token, AES-256-GCM encrypted with a key derived from `AUTH_SECRET`.
 - **Product.aliases**: phrases customers use ("black mask") — editable on the product form.
 
+Migration `20261005100000_whatsapp_coexistence` (additive):
+- **Order.phoneE164**: `phoneNumber` normalized by `src/lib/phone.ts` (Lebanese
+  formats → `+961…`), indexed. Lines one customer's website/app orders up with
+  their WhatsApp chat ("Other orders on this number" in the thread). Fill it for
+  existing orders with `node scripts/backfill-phones.mjs` (dry run; `--apply` writes).
+- **Conversation.bsuid**: WhatsApp business-scoped user id. Meta always sends it
+  (`from_user_id`), the phone only sometimes (username users), so it's the
+  fallback key that keeps one thread per customer. Unique per channel.
+- **Conversation.contactName**: name from the phone's WhatsApp contacts (contact
+  sync). Shown before the WhatsApp profile name; never overwrites it.
+- **Message.isHistorical**: imported by history sync — displayed, never acted on.
+
+Who sent a message: `INBOUND` = customer; `OUTBOUND` + `sentBy` = dashboard
+(admin email); `OUTBOUND` without `sentBy` = staff in the WhatsApp Business app
+(or the Instagram app). Meta only echoes phone-app messages, never API sends,
+so this can't be ambiguous.
+
 There is no separate customer table: AquaGear orders already carry the
 customer's name/phone/address, and the Conversation is the channel identity.
 Identities are never merged automatically (not by name, not by phone).
@@ -95,7 +113,7 @@ the current deployment is shown on **Admin → Meta**).
 
 - **GET**: returns `hub.challenge` only when `hub.mode=subscribe` and
   `hub.verify_token` equals `META_VERIFY_TOKEN` (constant-time compare); else 403.
-- **POST**: rejects bodies > 1 MB (413), bad/missing `X-Hub-Signature-256` (401),
+- **POST**: rejects bodies > 4 MB (413; history-sync chunks can be large, Vercel's cap is 4.5 MB), bad/missing `X-Hub-Signature-256` (401),
   malformed JSON (400). With no app secret configured it returns 503 — unsigned
   deliveries are never accepted, including in development.
 - Valid deliveries are stored, acknowledged with 200, then processed in `after()`.
@@ -129,6 +147,110 @@ regular WhatsApp app.
    dashboard asks for Advanced Access.
 
 The WhatsApp Business Account ID isn't needed by the code.
+
+## WhatsApp Business app (coexistence)
+
+Keeps the shop's number in the **WhatsApp Business app on the phone** — staff
+chat, call and send voice notes exactly as before — while the same number is
+also connected to the Cloud API, so every chat mirrors into Admin → Inbox.
+Official Meta feature: *Onboarding WhatsApp Business app users*
+(developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users).
+Facts below were checked against Meta's docs on 2026-10-05; Meta changes them.
+
+### Requirements
+
+- The number is on the **WhatsApp Business app** (version ≥ 2.24.17) and not on
+  the Cloud API or any other provider.
+- Our Meta app must be a **Tech Provider** (Meta: *"You must already be a Solution
+  Partner or Tech Provider"*). That needs **Business Verification** (official
+  business documents) and then **App Review** for advanced access to
+  `whatsapp_business_management` and `whatsapp_business_messaging` (two screen
+  recordings: sending a message, creating a template).
+  UNVERIFIED: whether Meta lets an app onboard a number in its *own* portfolio
+  without Tech Provider status. Trying costs nothing — if Meta refuses, nothing is connected.
+- An **Embedded Signup configuration** (App Dashboard → WhatsApp → Embedded
+  Signup / Facebook Login for Business → Configurations) → its ID is `META_ES_CONFIG_ID`.
+- Unsupported country list: UNVERIFIED for Lebanon at time of writing — the
+  signup flow says so if the number isn't eligible.
+
+### What changes on the phone (Meta's feature table)
+
+| | After connecting |
+|---|---|
+| 1:1 chats, photos, voice notes, calls | Unchanged on the phone; chats mirror to the dashboard (calls don't) |
+| Edit / delete message | Supported |
+| Disappearing messages, view once, live location (1:1) | **Turned off** |
+| Broadcast lists | **Disabled** (existing lists become read-only) |
+| Group chats | Keep working, **not** synced to the dashboard |
+| Linked devices | Unlinked during setup — re-link. **WhatsApp for Windows and WearOS are not supported**: messages sent from them don't reach the dashboard (use the Mac app or WhatsApp Web) |
+| Throughput | Fixed 20 messages/second |
+| Price | Phone-app messages stay free and aren't limited by the 24h window. Dashboard (API) messages use Cloud API pricing and the 24h window |
+
+**Keep-alive:** if the WhatsApp Business app on the main phone isn't opened for
+about **14 days**, or the app is reinstalled / moved to another phone / the number
+re-registered, Meta disconnects the API side (`account_update` →
+`ACCOUNT_OFFBOARDED` / `PARTNER_REMOVED`, reason `PRIMARY_INACTIVITY`). The
+dashboard then shows **Disconnected** on Admin → Meta and Telegram gets an alert.
+Reconnect by running Embedded Signup again.
+
+**Disconnecting on purpose:** the Deregister API can't be used. In the app:
+Settings → Account → Business Platform → **Disconnect Account**. The phone keeps
+working; the dashboard stops receiving messages.
+
+### Webhook fields
+
+Subscribe the app (WhatsApp → Configuration) to: **messages**,
+**smb_message_echoes**, **history**, **smb_app_state_sync**, **account_update**.
+
+| Field | Stored as |
+|---|---|
+| `messages` | Customer messages (`INBOUND`) + delivery/read statuses of dashboard sends |
+| `smb_message_echoes` | Staff replies from the phone (`OUTBOUND`, no `sentBy`). Never touch `lastInboundAt` (the API window), clear the unread badge, never create an order on their own (they're context for the next customer message) |
+| `history` | Past chats (`isHistorical`). No unread, no window, no order detection, no alerts — ever. Deduped on wamid; media for `media_placeholder` messages arrives later and fills the placeholder in. Declined sharing (error 2593109) is logged; the dashboard works with new messages only |
+| `smb_app_state_sync` | `Conversation.contactName`. A contact without a chat gets an empty thread that the inbox hides until it has messages |
+| `account_update` | Disconnect/reconnect alerts (Admin → Meta + Telegram) |
+
+### History sync
+
+Covers up to **180 days** before onboarding, needs the owner's consent in the
+WhatsApp Business app during signup, and must be requested **within 24 hours**
+of onboarding — **once** (to redo it, disconnect and onboard again). Admin →
+Meta requests contacts then history automatically right after a successful
+signup; **Re-request contacts + history sync** is there if that call failed.
+Progress (phase/chunk, `progress` 0–100) shows on Admin → Meta.
+
+### Rollout (Meta-side steps — done by the owner, in this order)
+
+1. **Before anything:** back up WhatsApp chats on the phone; list linked devices
+   (Settings → Linked devices); move anyone off WhatsApp for Windows; confirm
+   the number isn't on the Cloud API or with a provider; update the app.
+2. Business portfolio + **Business Verification**, then **Tech Provider** App
+   Review (see Requirements). Add the WhatsApp use case to the app.
+3. **Deploy first** with `META_APP_ID`, `META_APP_SECRET`, `META_VERIFY_TOKEN`,
+   `META_ES_CONFIG_ID`, `CRON_SECRET` set, and check
+   `GET /api/webhooks/meta?hub.mode=subscribe&hub.verify_token=…&hub.challenge=1` returns `1`.
+4. WhatsApp → Configuration: callback URL + verify token → Verify and save;
+   subscribe the five fields above.
+5. Create the Embedded Signup configuration → `META_ES_CONFIG_ID` → redeploy.
+6. Admin → Meta → **Connect WhatsApp Business app** → follow Meta's window →
+   choose to connect the existing WhatsApp Business app → scan the QR code from
+   the app on the phone → **allow history sharing**. The page then exchanges the
+   token, subscribes the app, stores the credentials (encrypted) and starts
+   contacts + history sync. All steps should show ✓.
+7. Re-link supported companion devices.
+8. Manual test:
+   - [ ] customer message → appears in Inbox
+   - [ ] reply from the **phone** → appears as "Staff (phone)"
+   - [ ] reply from the **dashboard** → appears on the phone
+   - [ ] photo / voice note both ways
+   - [ ] order message → pending draft with the right products
+   - [ ] confirm → stock decremented once
+   - [ ] delivered/read ticks update on dashboard sends
+   - [ ] >24h after the customer's last message the dashboard asks for a template
+   - [ ] Admin → Meta: Test connections ✓, history 100%, phone replies counted
+9. Watch Admin → Meta for a week: failed events, unmatched products in drafts.
+
+The staff-facing summary is [whatsapp-staff-guide.md](whatsapp-staff-guide.md).
 
 ## Instagram setup
 
@@ -288,7 +410,13 @@ audit, status-route bypass, cron retry, website cart regression, secret exposure
 
 - Rule-based extraction (no LLM): unusual phrasing ends up as MEDIUM/LOW for an
   admin. `extractOrder()` is the swap point for an LLM returning the same shape.
-- No outbound templates or automatic status messages (no approved templates yet).
+- Templates: approved text-body templates can be sent from a thread once the
+  24h window closes (header variables / media headers aren't supported in the
+  picker). No automatic status messages to customers.
+- Media is fetched from Meta on demand (not stored); Meta keeps WhatsApp media
+  for a limited time, after which old images stop loading.
+- Customers whose phone Meta withholds (username users) are messaged by BSUID
+  (`recipient`), which Meta supports since July 2026.
 - No product variants in the catalog: sizes go into order notes.
 - Polling refresh (10–20 s) instead of realtime.
 - Retries are opportunistic + a daily cron (Vercel Hobby allows daily crons only).

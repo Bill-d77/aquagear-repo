@@ -35,7 +35,8 @@ export default async function AdminDashboard() {
       _count: true,
       _sum: { total: true },
     }),
-    prisma.conversation.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    // Live messages only: chats imported by WhatsApp history sync aren't new.
+    prisma.conversation.count({ where: { createdAt: { gte: thirtyDaysAgo }, messages: { some: { isHistorical: false } } } }),
     prisma.conversation.count({
       where: { createdAt: { gte: thirtyDaysAgo }, orders: { some: { status: { in: [...REVENUE_STATUSES] } } } },
     }),

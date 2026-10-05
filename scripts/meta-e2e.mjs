@@ -54,6 +54,15 @@ const igText = (text, echo = false) =>
     }] }],
   });
 
+// Coexistence fields share the WhatsApp envelope; only `field` and `value` differ.
+const BUSINESS = "96100000000";
+const waField = (field, value) =>
+  JSON.stringify({
+    object: "whatsapp_business_account",
+    entry: [{ id: "WABA", changes: [{ field, value: { messaging_product: "whatsapp", metadata: { display_phone_number: BUSINESS, phone_number_id: "PNID" }, ...value } }] }],
+  });
+const ts = (offsetSec = 0) => String(Math.floor(Date.now() / 1000) + offsetSec);
+
 async function until(fn, label, ms = 15000) {
   const end = Date.now() + ms;
   for (;;) {
@@ -92,7 +101,7 @@ try {
     assert.equal((await post(body, sign(body + "x"))).status, 401);
     assert.equal((await post(body, "")).status, 401);
     assert.equal((await post("{not json")).status, 400);
-    assert.equal((await post("x".repeat(1024 * 1024 + 10))).status, 413);
+    assert.equal((await post("x".repeat(4 * 1024 * 1024 + 10))).status, 413);
     assert.equal(await prisma.conversation.count({ where: { externalUserId: waId } }), 0, "rejected deliveries store nothing");
   });
 
@@ -154,6 +163,78 @@ try {
     );
   });
 
+  await step("Coexistence history: imported as historical, no unread/window/order, re-delivery deduped", async () => {
+    const hist = `9613${String(Date.now()).slice(-6)}`;
+    const body = waField("history", { history: [{ metadata: { phase: 0, chunk_order: 1, progress: 100 }, threads: [{ id: hist, messages: [
+      { from: hist, id: `wamid.h.${run}.1`, timestamp: ts(-7200), type: "text", text: { body: "I want 2 black Zephyr Pro diving masks. Deliver to Tripoli. 70 123 456" } },
+      { from: BUSINESS, id: `wamid.h.${run}.2`, timestamp: ts(-7100), type: "media_placeholder" },
+    ] }] }] });
+    assert.equal((await post(body)).status, 200);
+    const conv = await until(async () => {
+      const c = await prisma.conversation.findFirst({ where: { externalUserId: hist }, include: { messages: true } });
+      return c?.messages.length === 2 ? c : null;
+    }, "history conversation");
+    assert.ok(conv.messages.every((m) => m.isHistorical));
+    assert.equal(conv.unreadCount, 0);
+    assert.equal(conv.lastInboundAt, null, "history never opens the API reply window");
+    assert.equal(conv.extraction, null, "history never runs order detection");
+    assert.equal(await prisma.order.count({ where: { conversationId: conv.id } }), 0);
+
+    // Same chunk again inside a different body: no duplicates.
+    assert.equal((await post(body.replace('"progress":100', '"progress":100,"x":1'))).status, 200);
+    // Media for the placeholder arrives later under value.messages with the same wamid.
+    await post(waField("history", { messages: [{ from: BUSINESS, id: `wamid.h.${run}.2`, timestamp: ts(-7100), type: "image", image: { id: "MEDIA1", mime_type: "image/jpeg", caption: "price list" } }] }));
+    const filled = await until(() => prisma.message.findFirst({ where: { externalMessageId: `wamid.h.${run}.2`, type: "IMAGE" } }), "placeholder filled");
+    assert.equal(filled.text, "price list");
+    assert.equal(await prisma.message.count({ where: { conversationId: conv.id } }), 2);
+
+    // Contact sync: sets contactName only; a contact with no chat stays out of the inbox.
+    const stranger = `9617${String(Date.now()).slice(-7)}`;
+    await post(waField("smb_app_state_sync", { state_sync: [
+      { type: "contact", contact: { full_name: `Rami ${run}`, phone_number: hist }, action: "add", metadata: { timestamp: ts() } },
+      { type: "contact", contact: { full_name: `Stranger ${run}`, phone_number: stranger }, action: "add", metadata: { timestamp: ts() } },
+    ] }));
+    await until(async () => (await prisma.conversation.findFirst({ where: { externalUserId: hist } }))?.contactName === `Rami ${run}`, "contact name");
+    const empty = await until(() => prisma.conversation.findFirst({ where: { externalUserId: stranger } }), "contact placeholder");
+    assert.equal(await prisma.message.count({ where: { conversationId: empty.id } }), 0);
+  });
+
+  await step("Coexistence echo: phone-app reply stored OUTBOUND (no sentBy), no window, clears unread, never creates an order", async () => {
+    const cx = `9613${String(Date.now() + 1).slice(-6)}`;
+    await post(waField("messages", { contacts: [{ profile: { name: `Echo ${run}` }, wa_id: cx }], messages: [{ from: cx, id: `wamid.cx.${run}.1`, timestamp: ts(-60), type: "text", text: { body: "hello" } }] }));
+    const conv = await until(() => prisma.conversation.findFirst({ where: { externalUserId: cx, unreadCount: 1 } }), "inbound");
+    const windowOpenedAt = conv.lastInboundAt.getTime();
+    await post(waField("smb_message_echoes", { message_echoes: [{ from: BUSINESS, to: cx, id: `wamid.cx.${run}.2`, timestamp: ts(), type: "text", text: { body: "I want 2 Zephyr Pro masks for you? Deliver to Tripoli 70 123 456" } }] }));
+    const echo = await until(() => prisma.message.findFirst({ where: { externalMessageId: `wamid.cx.${run}.2` } }), "echo");
+    assert.equal(echo.direction, "OUTBOUND");
+    assert.equal(echo.sentBy, null, "no sentBy = sent from the phone app");
+    assert.equal(echo.isHistorical, false);
+    const after = await until(async () => {
+      const c = await prisma.conversation.findUnique({ where: { id: conv.id } });
+      return c.unreadCount === 0 ? c : null;
+    }, "unread cleared");
+    assert.equal(after.lastInboundAt.getTime(), windowOpenedAt, "echo never moves the API window");
+    await new Promise((r) => setTimeout(r, 1000));
+    assert.equal(await prisma.order.count({ where: { conversationId: conv.id } }), 0, "a staff message alone never creates an order");
+  });
+
+  await step("BSUID: phone withheld → thread by user id; later message with phone joins the same thread", async () => {
+    const bsuid = `LB.${run}${Date.now()}`;
+    const phone = `9617${String(Date.now() + 2).slice(-7)}`;
+    await post(waField("messages", { contacts: [{ user_id: bsuid, profile: { name: `Anon ${run}` } }], messages: [{ from_user_id: bsuid, id: `wamid.b.${run}.1`, timestamp: ts(-30), type: "text", text: { body: "hi" } }] }));
+    const conv = await until(() => prisma.conversation.findFirst({ where: { bsuid } }), "bsuid conversation");
+    assert.equal(conv.externalUserId, bsuid);
+    assert.equal(conv.phone, null);
+    await post(waField("messages", { contacts: [{ user_id: bsuid, wa_id: phone, profile: { name: `Anon ${run}` } }], messages: [{ from: phone, from_user_id: bsuid, id: `wamid.b.${run}.2`, timestamp: ts(), type: "text", text: { body: "still me" } }] }));
+    await until(async () => (await prisma.message.count({ where: { conversationId: conv.id } })) === 2, "same thread");
+    assert.equal((await prisma.conversation.findUnique({ where: { id: conv.id } })).phone, `+${phone}`);
+    assert.equal(await prisma.conversation.count({ where: { OR: [{ bsuid }, { externalUserId: phone }] } }), 1);
+  });
+
+  await step("Draft orders store the normalized phone (phoneE164)", async () => {
+    assert.equal((await prisma.order.findUnique({ where: { id: draftId } })).phoneE164, "+96170123456");
+  });
+
   await step("Instagram: inquiry → no order; echo stored as outbound; 'send me one' → NEEDS_REVIEW draft without invented phone", async () => {
     await post(igText("Hi, how much is the Quokka black mask?"));
     await post(igText("$25", true));
@@ -177,6 +258,7 @@ try {
     assert.equal(review.status, 403);
     assert.equal((await fetch(`${BASE}/api/admin/meta/media/x`)).status, 403);
     assert.equal((await fetch(`${BASE}/api/admin/meta/reply`, { method: "POST", body: new URLSearchParams({ conversationId: "x", text: "hi" }) })).status, 403);
+    assert.equal((await fetch(`${BASE}/api/admin/meta/onboard`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ intent: "sync" }) })).status, 403);
   });
 
   // ── Admin session ──────────────────────────────────────────────────────────
@@ -264,6 +346,36 @@ try {
     assert.equal(placed.items.length, 1);
   });
 
+  await step("Confirm guards: unresolved item blocks; two simultaneous confirms deduct stock once; reject after confirm refused", async () => {
+    const draft = await prisma.order.findFirst({ where: { conversation: { externalUserId: waId }, status: { in: ["PENDING_CONFIRMATION", "NEEDS_REVIEW"] } } });
+    assert.ok(draft, "second draft exists");
+    const form = (intent, extra = []) =>
+      new URLSearchParams([
+        ["id", draft.id], ["intent", intent], ["name", "E2E Diver"], ["phoneNumber", "70 123 456"], ["location", "Tripoli"],
+        ["apartment", ""], ["notes", ""], ["priceReason", ""],
+        ["itemKind", "item"], ["itemProductId", blackMask.id], ["itemQuantity", "1"], ["itemPrice", ""],
+        ...extra,
+      ]);
+    const review = (body) => authed("/api/admin/orders/review", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body });
+
+    const blocked = await review(form("confirm", [["itemKind", "unresolved"], ["itemText", "blue fins size 42"], ["itemProductId", ""], ["itemQuantity", "1"], ["itemPrice", ""]]));
+    assert.ok(new URL(blocked.headers.get("location")).searchParams.get("error")?.includes("blue fins size 42"), blocked.headers.get("location"));
+    assert.ok(["PENDING_CONFIRMATION", "NEEDS_REVIEW"].includes((await prisma.order.findUnique({ where: { id: draft.id } })).status), "still a draft");
+    assert.equal((await prisma.order.findUnique({ where: { id: draft.id } })).phoneE164, "+96170123456", "saved with normalized phone");
+
+    const stockBefore = (await prisma.product.findUnique({ where: { id: blackMask.id } })).stock;
+    const results = await Promise.all([review(form("confirm")), review(form("confirm")), review(form("confirm"))]);
+    const errors = results.filter((r) => r.headers.get("location")?.includes("error=")).length;
+    assert.equal(errors, 2, "exactly one confirm wins");
+    assert.equal((await prisma.order.findUnique({ where: { id: draft.id } })).status, "PLACED");
+    assert.equal((await prisma.product.findUnique({ where: { id: blackMask.id } })).stock, stockBefore - 1, "stock taken once");
+
+    const late = await review(form("reject"));
+    assert.ok(late.headers.get("location")?.includes("error="));
+    assert.equal((await prisma.order.findUnique({ where: { id: draft.id } })).status, "PLACED", "reject can't cancel a placed order");
+    assert.equal((await prisma.product.findUnique({ where: { id: blackMask.id } })).stock, stockBefore - 1);
+  });
+
   await step("Draft status can't be bypassed through the generic status route", async () => {
     const ig = await prisma.order.findFirst({ where: { conversation: { externalUserId: igsid } } });
     const res = await authed("/api/admin/orders/status", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ id: ig.id, status: "PLACED" }) });
@@ -296,9 +408,46 @@ try {
     assert.equal(cart.source, "WEBSITE");
   });
 
-  await step("Meta page never exposes secrets", async () => {
-    const html = await authed("/admin/meta").then((r) => r.text());
+  await step("Meta page: coexistence card shows history progress and an offboarding; never exposes secrets", async () => {
+    await post(waField("account_update", { event: "ACCOUNT_OFFBOARDED", disconnection_info: { reason: "PRIMARY_INACTIVITY", initiated_by: "SYSTEM" }, run }));
+    await until(() => prisma.metaWebhookEvent.findFirst({ where: { eventType: "account", status: "PROCESSED", receivedAt: { gte: new Date(Date.now() - 60_000) } } }), "account event");
+    const res = await authed("/admin/meta");
+    assert.equal(res.status, 200);
+    const html = await res.text();
+    assert.ok(html.includes("Disconnected") && html.includes("phone app not opened for ~14 days"), "offboarding shown");
+    assert.ok(/History import:.*100%/.test(html.replace(/<!-- -->/g, "")), "history progress shown");
     assert.ok(!html.includes(META_APP_SECRET) && !html.includes(META_VERIFY_TOKEN));
+  });
+
+  await step("Dashboard reply: stored before sending, kept as failed on Meta error; outside window needs a template", async () => {
+    const conv = await prisma.conversation.findFirst({ where: { externalUserId: waId } });
+    const reply = (fields) => authed("/api/admin/meta/reply", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(fields) });
+    // No WhatsApp credentials in e2e → Meta call fails → the message stays, marked failed.
+    const res = await reply({ conversationId: conv.id, text: `hello from dashboard ${run}` });
+    assert.ok(res.headers.get("location")?.includes("error="));
+    const kept = await prisma.message.findFirst({ where: { conversationId: conv.id, text: `hello from dashboard ${run}` } });
+    assert.ok(kept?.status?.startsWith("failed"), kept?.status);
+    assert.equal(kept.sentBy, adminEmail);
+
+    await prisma.conversation.update({ where: { id: conv.id }, data: { lastInboundAt: new Date(Date.now() - 25 * 3600_000) } });
+    const closed = await reply({ conversationId: conv.id, text: "late reply" });
+    assert.match(new URL(closed.headers.get("location")).searchParams.get("error"), /template/);
+    const tpl = await reply({ conversationId: conv.id, template: "hello_world|en_US" });
+    assert.match(new URL(tpl.headers.get("location")).searchParams.get("error"), /isn't approved/);
+    assert.equal(await prisma.message.count({ where: { conversationId: conv.id, text: "late reply" } }), 0, "blocked sends store nothing");
+    await prisma.conversation.update({ where: { id: conv.id }, data: { lastInboundAt: new Date() } });
+  });
+
+  await step("Onboarding route: JSON only, validated, and stores nothing when META_APP_ID is missing", async () => {
+    const call = (body, type = "application/json") => authed("/api/admin/meta/onboard", { method: "POST", headers: { "content-type": type }, body });
+    assert.equal((await call("intent=sync", "application/x-www-form-urlencoded")).status, 415, "cross-site forms can't post here");
+    assert.equal((await call(JSON.stringify({ intent: "connect", code: "x", wabaId: "abc" }))).status, 400);
+    const res = await call(JSON.stringify({ intent: "connect", code: "a".repeat(40), wabaId: "123456789" }));
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, false);
+    assert.match(body.steps[0].detail, /META_APP_ID/);
+    assert.equal(await prisma.metaCredential.count({ where: { key: "whatsapp" } }), 0);
   });
 
   console.log(`\n${passed} passed`);

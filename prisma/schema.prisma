@@ -92,10 +92,14 @@ model Order {
   // Snapshot of the extractor output that created/last updated this draft.
   extraction       Json?
   audits           OrderAudit[]
+  // phoneNumber normalized to E.164 (src/lib/phone.ts) so one customer's orders
+  // and WhatsApp chat line up regardless of how the number was typed.
+  phoneE164        String?
 
   @@index([source])
   @@index([conversationId])
   @@index([status, createdAt])
+  @@index([phoneE164])
 }
 
 // Append-only history of who changed what on an order (admin edits, Meta
@@ -117,10 +121,16 @@ model OrderAudit {
 model Conversation {
   id             String    @id @default(cuid())
   channel        String // WHATSAPP | INSTAGRAM
-  externalUserId String // WhatsApp wa_id, or Instagram-scoped user id (IGSID)
+  externalUserId String // WhatsApp wa_id (BSUID when Meta omits the phone), or Instagram-scoped user id (IGSID)
+  // WhatsApp business-scoped user id ("LB.1234…"). Always sent by Meta, unlike
+  // the phone, so it's the fallback key that keeps one thread per customer.
+  bsuid          String?
   name           String?
+  // Name from the business's phone contacts (smb_app_state_sync). Kept apart
+  // from `name` (WhatsApp profile name) so a contact sync never overwrites it.
+  contactName    String?
   username       String?
-  phone          String?
+  phone          String? // E.164
   // OPEN | WAITING_FOR_ADMIN | WAITING_FOR_CUSTOMER | POTENTIAL_ORDER |
   // ORDER_DETECTED | ORDER_CONFIRMED | CLOSED
   status         String    @default("OPEN")
@@ -136,7 +146,9 @@ model Conversation {
   orders         Order[]
 
   @@unique([channel, externalUserId])
+  @@unique([channel, bsuid])
   @@index([lastMessageAt])
+  @@index([phone])
 }
 
 model Message {
@@ -152,7 +164,12 @@ model Message {
   metadata          Json?
   // Delivery state for outbound messages: sent | delivered | read | failed
   status            String?
-  sentBy            String? // admin email for dashboard replies
+  // Who sent it: INBOUND = customer; OUTBOUND with sentBy = dashboard (admin
+  // email); OUTBOUND without sentBy = staff on the phone app (coexistence echo).
+  sentBy            String?
+  // Imported by coexistence history sync: shown in the thread, never triggers
+  // order detection, notifications or unread counts.
+  isHistorical      Boolean      @default(false)
   externalTimestamp DateTime
   createdAt         DateTime     @default(now())
 

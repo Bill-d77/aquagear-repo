@@ -8,7 +8,8 @@ import { recordWebhook, processEvent, retryDueEvents } from "@/lib/meta/ingest";
 // admin request: it authenticates only via Meta's verify token (GET) and the
 // X-Hub-Signature-256 HMAC over the raw body (POST).
 
-const MAX_BODY_BYTES = 1024 * 1024;
+// History-sync chunks can be large; Vercel caps request bodies at 4.5 MB.
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
 /** Subscription handshake from the Meta App Dashboard. */
 export async function GET(req: Request) {

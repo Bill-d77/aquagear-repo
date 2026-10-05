@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireMobileAdmin, adminOrderInclude, serializeAdminOrder } from "@/lib/mobile-admin";
 import { orderStatusSchema } from "@/lib/validation";
-import { changeOrderStatus, InsufficientStockError, OrderNotFoundError } from "@/lib/order-transitions";
-import { isDraftStatus } from "@/lib/order-status";
+import { changeOrderStatus, InsufficientStockError, OrderChangedError, OrderNotFoundError } from "@/lib/order-transitions";
+import { isDraftStatus, ORDER_STATUSES } from "@/lib/order-status";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -45,7 +45,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const current = await prisma.order.findUnique({ where: { id }, select: { status: true } });
     if (!current || isDraftStatus(current.status)) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (status) {
-      await changeOrderStatus(id, status);
+      await changeOrderStatus(id, status, ORDER_STATUSES);
     }
 
     const fieldUpdate = {
@@ -64,6 +64,9 @@ export async function PATCH(req: Request, { params }: Params) {
   } catch (e) {
     if (e instanceof InsufficientStockError) {
       return NextResponse.json({ error: `Cannot reactivate: insufficient stock for ${e.message}` }, { status: 409 });
+    }
+    if (e instanceof OrderChangedError) {
+      return NextResponse.json({ error: "Order was changed concurrently — reload and retry" }, { status: 409 });
     }
     if (e instanceof OrderNotFoundError || (e as { code?: string }).code === "P2025") {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
