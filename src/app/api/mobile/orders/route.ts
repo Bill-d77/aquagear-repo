@@ -7,6 +7,7 @@ import { deliveryFeeFor, MAX_CART_QUANTITY } from "@/lib/cart";
 import { getStoreSettings } from "@/lib/settings";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
+import { toE164 } from "@/lib/phone";
 import { getMobileUser } from "@/lib/mobile";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
@@ -76,6 +77,7 @@ export async function POST(req: Request) {
           name,
           location: `${city}, ${area}`,
           phoneNumber,
+          phoneE164: toE164(phoneNumber),
           apartment,
           paymentMode,
           status: PLACED_ORDER_STATUS,

@@ -10,6 +10,7 @@ import { getStoreSettings } from "@/lib/settings";
 import { auth } from "@/lib/auth";
 import { PLACED_ORDER_STATUS } from "@/lib/order-status";
 import { notifyNewOrder } from "@/lib/telegram";
+import { toE164 } from "@/lib/phone";
 
 const checkoutSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -73,13 +74,15 @@ export async function submitOrder(prevState: any, formData: FormData) {
       const { shippingFlatRate } = await getStoreSettings();
       const total = subtotal + deliveryFeeFor(subtotal, shippingFlatRate);
 
-      await tx.order.update({
-        where: { id: cartId },
+      // Status-guarded so a double-submitted checkout can't place (and take stock) twice.
+      const placed = await tx.order.updateMany({
+        where: { id: cartId, status: "PENDING" },
         data: {
           userId,
           name,
           location,
           phoneNumber,
+          phoneE164: toE164(phoneNumber),
           apartment,
           paymentMode,
           status: PLACED_ORDER_STATUS,
@@ -87,6 +90,7 @@ export async function submitOrder(prevState: any, formData: FormData) {
           total,
         },
       });
+      if (placed.count !== 1) throw new Error("Cart is empty");
 
       for (const item of order.items) {
         const updated = await tx.product.updateMany({

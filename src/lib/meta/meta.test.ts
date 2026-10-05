@@ -6,6 +6,7 @@ import { createHmac } from "node:crypto";
 import { verifyMetaSignature, safeEqual } from "./signature.ts";
 import { normalizeWebhook } from "./normalize.ts";
 import { extractOrder, normalizePhone, type CatalogProduct, type ChatLine } from "./extract.ts";
+import { toE164 } from "../phone.ts";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 const sign = (body: string, secret: string) => `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
@@ -253,4 +254,90 @@ test("phone normalization", () => {
   assert.equal(normalizePhone("70123456"), "+96170123456");
   assert.equal(normalizePhone("+961 70 123 456"), "+96170123456");
   assert.equal(normalizePhone("00961 3 123456"), "+9613123456");
+});
+
+test("phone: every format of one customer maps to the same E.164", () => {
+  for (const raw of ["03 123 456", "3123456", "+961 3 123 456", "00961 3 123456", "9613123456", "+961 03 123 456"]) {
+    assert.equal(toE164(raw), "+9613123456", raw);
+  }
+  for (const [raw, want] of [["78 123 456", "+96178123456"], ["81-123-456", "+96181123456"], ["76123456", "+96176123456"]]) {
+    assert.equal(toE164(raw), want, raw);
+  }
+  assert.equal(toE164("01 123 456"), "+9611123456"); // Beirut landline
+  assert.equal(toE164("06 123 456"), "+9616123456"); // Tripoli landline
+  assert.equal(toE164("+33 6 12 34 56 78"), "+33612345678");
+  assert.equal(toE164("0033 6 12 34 56 78"), "+33612345678");
+  for (const junk of ["", "abc", "12", "123456789"]) assert.equal(toE164(junk), null, junk);
+  assert.equal(toE164(null), null);
+});
+
+// ── Coexistence (WhatsApp Business app + Cloud API) ─────────────────────────
+
+test("coexistence: phone-app echo is OUTBOUND to the customer", () => {
+  const ev = normalizeWebhook(JSON.parse(fixture("whatsapp-echo.json")));
+  assert.equal(ev.eventType, "echo");
+  assert.equal(ev.messages.length, 1);
+  const [m] = ev.messages;
+  assert.equal(m.direction, "OUTBOUND");
+  assert.equal(m.customerId, "9613123456"); // the `to`, never the business number
+  assert.equal(m.customerPhone, "+9613123456");
+  assert.equal(m.text, "Confirmed, total $75");
+  assert.equal(m.historical, undefined);
+});
+
+test("coexistence: history threads → historical messages with the right direction", () => {
+  const ev = normalizeWebhook(JSON.parse(fixture("whatsapp-history.json")));
+  assert.equal(ev.eventType, "history");
+  assert.deepEqual(ev.messages.map((m) => [m.externalMessageId, m.direction, m.type, m.customerId]), [
+    ["wamid.H1", "INBOUND", "TEXT", "9613123456"],
+    ["wamid.H2", "OUTBOUND", "TEXT", "9613123456"],
+    ["wamid.H3", "OUTBOUND", "UNKNOWN", "9613123456"],
+  ]);
+  assert.ok(ev.messages.every((m) => m.historical === true));
+  assert.deepEqual(ev.messages[2].metadata, { originalType: "media_placeholder" });
+});
+
+test("coexistence: history media fills a placeholder; business-sent has no customer id", () => {
+  const ev = normalizeWebhook(JSON.parse(fixture("whatsapp-history-media.json")));
+  const [m] = ev.messages;
+  assert.equal(m.externalMessageId, "wamid.H3");
+  assert.equal(m.type, "IMAGE");
+  assert.equal(m.historical, true);
+  assert.equal(m.customerId, ""); // sent by the business: ingest only updates the placeholder
+  assert.equal((m.metadata as { mediaId: string }).mediaId, "2423079038");
+});
+
+test("coexistence: declined history sharing is noted, not stored", () => {
+  const ev = normalizeWebhook(JSON.parse(fixture("whatsapp-history-declined.json")));
+  assert.equal(ev.messages.length, 0);
+  assert.equal(ev.eventType, "ignored");
+  assert.match(ev.ignored[0], /2593109/);
+});
+
+test("coexistence: contact sync and account_update", () => {
+  const contacts = normalizeWebhook(JSON.parse(fixture("whatsapp-contacts.json")));
+  assert.deepEqual(contacts.contacts, [{ waId: "9613123456", name: "Rami Diver" }]);
+  assert.equal(contacts.eventType, "contacts");
+
+  const account = normalizeWebhook(JSON.parse(fixture("whatsapp-account.json")));
+  assert.deepEqual(account.account, [{ event: "PARTNER_REMOVED", reason: "PRIMARY_INACTIVITY" }]);
+  assert.equal(account.eventType, "account");
+});
+
+test("BSUID: phone withheld → thread keyed by business-scoped user id", () => {
+  const ev = normalizeWebhook(JSON.parse(fixture("whatsapp-bsuid.json")));
+  const [m] = ev.messages;
+  assert.equal(m.customerId, "LB.13491208655302741918");
+  assert.equal(m.bsuid, "LB.13491208655302741918");
+  assert.equal(m.customerPhone, undefined);
+  assert.equal(m.customerName, "Username Diver");
+
+  // Phone and BSUID together: phone is the key, BSUID is kept for lookups.
+  const both = JSON.parse(fixture("whatsapp-bsuid.json"));
+  both.entry[0].changes[0].value.contacts[0].wa_id = "9613123456";
+  both.entry[0].changes[0].value.messages[0].from = "9613123456";
+  const [b] = normalizeWebhook(both).messages;
+  assert.equal(b.customerId, "9613123456");
+  assert.equal(b.bsuid, "LB.13491208655302741918");
+  assert.equal(b.customerPhone, "+9613123456");
 });

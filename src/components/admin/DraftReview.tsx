@@ -81,6 +81,7 @@ export function DraftReview({ order, products }: { order: DraftOrder; products: 
         </div>
         {order.items.map((item, i) => (
           <div key={`i-${i}`} className="grid grid-cols-12 gap-2 items-center">
+            <input type="hidden" name="itemKind" value="item" />
             <div className="col-span-12 sm:col-span-7">{productSelect(item.productId)}</div>
             <input name="itemQuantity" type="number" min={0} max={99} defaultValue={item.quantity} className={`${input} col-span-4 sm:col-span-2`} aria-label="Quantity" />
             <input name="itemPrice" type="number" min={0} step="0.01" defaultValue={dollars(item.price)} className={`${input} col-span-8 sm:col-span-3`} aria-label="Unit price" />
@@ -91,7 +92,11 @@ export function DraftReview({ order, products }: { order: DraftOrder; products: 
         ))}
         {unresolved.map((u, i) => (
           <div key={`u-${i}`} className="grid grid-cols-12 gap-2 items-center bg-amber-50 rounded-md p-2">
-            <p className="col-span-12 text-xs text-amber-800">Customer wrote “{u.customerText}” — pick the product:</p>
+            <input type="hidden" name="itemKind" value="unresolved" />
+            <input type="hidden" name="itemText" value={u.customerText} />
+            <p className="col-span-12 text-xs text-amber-800">
+              Customer wrote “{u.customerText}” — pick the product, or set quantity to 0 if it isn&apos;t wanted. Confirm is blocked until then.
+            </p>
             <div className="col-span-12 sm:col-span-7">{productSelect("", u.candidates)}</div>
             <input name="itemQuantity" type="number" min={0} max={99} defaultValue={u.quantity} className={`${input} col-span-4 sm:col-span-2`} aria-label="Quantity" />
             <input name="itemPrice" type="number" min={0} step="0.01" placeholder="catalog" className={`${input} col-span-8 sm:col-span-3`} aria-label="Unit price" />
@@ -99,6 +104,7 @@ export function DraftReview({ order, products }: { order: DraftOrder; products: 
         ))}
         {[0, 1].map((i) => (
           <div key={`n-${i}`} className="grid grid-cols-12 gap-2 items-center">
+            <input type="hidden" name="itemKind" value="new" />
             <div className="col-span-12 sm:col-span-7">{productSelect("")}</div>
             <input name="itemQuantity" type="number" min={0} max={99} defaultValue={1} className={`${input} col-span-4 sm:col-span-2`} aria-label="Quantity" />
             <input name="itemPrice" type="number" min={0} step="0.01" placeholder="catalog" className={`${input} col-span-8 sm:col-span-3`} aria-label="Unit price" />

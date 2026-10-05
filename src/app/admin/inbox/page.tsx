@@ -25,12 +25,14 @@ export default async function Inbox({ searchParams }: { searchParams: SearchPara
   const page = Math.max(1, parseInt(sp.page || "1", 10) || 1);
 
   const where: Prisma.ConversationWhereInput = {
+    messages: { some: {} }, // contact-sync placeholders stay hidden until they have a message
     ...(channel ? { channel } : {}),
     ...(sp.unread ? { unreadCount: { gt: 0 } } : {}),
     ...(q
       ? {
           OR: [
             { name: { contains: q, mode: "insensitive" } },
+            { contactName: { contains: q, mode: "insensitive" } },
             { username: { contains: q, mode: "insensitive" } },
             { phone: { contains: q } },
             { externalUserId: { contains: q } },
@@ -103,7 +105,7 @@ export default async function Inbox({ searchParams }: { searchParams: SearchPara
                 <div className="flex flex-wrap items-center gap-2">
                   <SourceBadge source={c.channel} />
                   <span className={`truncate ${c.unreadCount ? "font-semibold text-gray-900" : "font-medium text-gray-800"}`}>
-                    {c.name || (c.username ? `@${c.username}` : c.phone || "Unknown customer")}
+                    {c.contactName || c.name || (c.username ? `@${c.username}` : c.phone || "Unknown customer")}
                   </span>
                   {c.username && c.name && <span className="text-xs text-gray-500">@{c.username}</span>}
                   {c.channel === "WHATSAPP" && c.phone && <span className="text-xs text-gray-500">{c.phone}</span>}

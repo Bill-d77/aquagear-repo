@@ -1,0 +1,16 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [{
+    "id": "102290129340398",
+    "changes": [{
+      "field": "smb_message_echoes",
+      "value": {
+        "messaging_product": "whatsapp",
+        "metadata": { "display_phone_number": "96171000000", "phone_number_id": "106540352242922" },
+        "message_echoes": [
+          { "from": "96171000000", "to": "9613123456", "id": "wamid.ECHO1", "timestamp": "1790000100", "type": "text", "text": { "body": "Confirmed, total $75" } }
+        ]
+      }
+    }]
+  }]
+}

@@ -115,6 +115,15 @@ async function postTelegram(text: string): Promise<boolean> {
   return false;
 }
 
+/** Plain-text alert to the admin chat (escaped). Non-throwing. */
+export async function notifyAdmin(text: string): Promise<void> {
+  try {
+    await postTelegram(esc(text));
+  } catch (err) {
+    console.error("[telegram] admin alert failed:", err);
+  }
+}
+
 // ponytail: in-memory dedupe. The checkout flow already flips an order
 // PENDING→PLACED exactly once before firing this, so exactly-once is guaranteed
 // per order; this Set just guards against a double-invoke within one instance.

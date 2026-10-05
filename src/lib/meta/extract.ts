@@ -9,6 +9,10 @@
 // upgrade, swap extractOrder() for an LLM call that returns the same Extraction
 // shape — the validation in ingest.ts (product ids, quantities) stays.
 
+import { normalizePhone } from "../phone.ts";
+
+export { normalizePhone };
+
 export interface CatalogProduct {
   id: string;
   name: string;
@@ -206,17 +210,8 @@ const SIZE = /\bsize\s*(\d{1,2}(?:[.,]5)?|xxs|xs|s|m|l|xl|xxl)\b/i;
 
 // ── Contact / delivery ──────────────────────────────────────────────────────
 
-const LEBANESE_PHONE = /(?:\+|00)?961[\s-]?0?(?:3|7\d|8[01])[\s-]?\d{3}[\s-]?\d{3}|\b0?(?:3|7[0169]|8[01])[\s-]?\d{3}[\s-]?\d{3}\b/;
+const LEBANESE_PHONE = /(?:\+|00)?961[\s-]?0?(?:3|7\d|8[01])[\s-]?\d{3}[\s-]?\d{3}|\b0?(?:3|7[01689]|8[01])[\s-]?\d{3}[\s-]?\d{3}\b/;
 const INTL_PHONE = /\+\d[\d\s-]{7,15}\d/;
-
-export function normalizePhone(raw: string): string {
-  let d = raw.replace(/\D/g, "");
-  if (raw.trim().startsWith("00")) d = d.slice(2);
-  if (d.startsWith("961")) return `+${d.replace(/^9610/, "961")}`;
-  if (/^0\d{7}$/.test(d)) return `+961${d.slice(1)}`;
-  if (/^(?:7[0169]|8[01])\d{6}$/.test(d) || /^3\d{6}$/.test(d)) return `+961${d}`;
-  return raw.trim().startsWith("+") ? `+${d}` : d;
-}
 
 // ponytail: small gazetteer of common Lebanese delivery areas, used only when
 // the customer names a place without "deliver to …". Extend as needed.

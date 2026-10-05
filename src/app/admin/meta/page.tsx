@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { Webhook } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { metaConfig, maskSecret } from "@/lib/meta/config";
-import { checkHealth, type ChannelHealth } from "@/lib/meta/client";
+import { checkHealth, getWhatsAppCreds, type ChannelHealth } from "@/lib/meta/client";
+import { EmbeddedSignup } from "@/components/admin/EmbeddedSignup";
 import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -24,17 +25,20 @@ export default async function MetaPage({ searchParams }: { searchParams: Promise
   const status = STATUSES.includes(sp.status ?? "") ? sp.status ?? "" : "";
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [health, counts, lastEvent, events, igToken, convCounts] = await Promise.all([
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const [wa, coex, health, counts, lastEvent, events, igToken, convCounts] = await Promise.all([
+    getWhatsAppCreds(),
+    coexistenceStatus(weekAgo),
     sp.test ? checkHealth() : null,
     prisma.metaWebhookEvent.groupBy({ by: ["status"], where: { receivedAt: { gte: dayAgo } }, _count: true }),
     prisma.metaWebhookEvent.findFirst({ orderBy: { receivedAt: "desc" }, select: { receivedAt: true } }),
     prisma.metaWebhookEvent.findMany({ where: status ? { status } : {}, orderBy: { receivedAt: "desc" }, take: 50 }),
     prisma.metaCredential.findUnique({ where: { key: "instagram_token" }, select: { updatedAt: true, expiresAt: true } }),
-    prisma.conversation.groupBy({ by: ["channel"], _count: true }),
+    prisma.conversation.groupBy({ by: ["channel"], where: { messages: { some: {} } }, _count: true }),
   ]);
 
   const configured = {
-    WHATSAPP: !!(cfg.whatsappPhoneNumberId && cfg.whatsappToken),
+    WHATSAPP: !!(wa.phoneNumberId && wa.token),
     INSTAGRAM: !!cfg.instagramEnvToken,
   };
   const webhookState = !cfg.webhookSecrets.length || !cfg.verifyToken
@@ -57,7 +61,11 @@ export default async function MetaPage({ searchParams }: { searchParams: Promise
           title="WhatsApp"
           configured={configured.WHATSAPP}
           health={health?.WHATSAPP}
-          lines={[`Phone number ID: ${cfg.whatsappPhoneNumberId || "—"}`, `Token: ${maskSecret(cfg.whatsappToken) || "—"}`, `Conversations: ${convCounts.find((c) => c.channel === "WHATSAPP")?._count ?? 0}`]}
+          lines={[
+            `Phone number ID: ${wa.phoneNumberId || "—"}`,
+            `Token: ${maskSecret(wa.token) || "—"}${wa.source === "signup" ? " (from Embedded Signup)" : wa.source === "env" ? " (from env)" : ""}`,
+            `Conversations: ${convCounts.find((c) => c.channel === "WHATSAPP")?._count ?? 0}`,
+          ]}
         />
         <ChannelCard
           title="Instagram"
@@ -81,6 +89,42 @@ export default async function MetaPage({ searchParams }: { searchParams: Promise
         </div>
       </div>
       <Link href="/admin/meta?test=1" className="btn-outline text-sm inline-block">Test connections</Link>
+
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-2 text-sm">
+        <h2 className="font-semibold text-gray-900">WhatsApp Business app (coexistence)</h2>
+        {cfg.appId && cfg.embeddedSignupConfigId ? (
+          <EmbeddedSignup appId={cfg.appId} configId={cfg.embeddedSignupConfigId} graphVersion={cfg.graphVersion} />
+        ) : (
+          <p className="text-gray-600">Set META_APP_ID and META_ES_CONFIG_ID to connect the WhatsApp Business app number from here.</p>
+        )}
+        {coex.disconnected ? (
+          <p className="font-medium text-red-700">
+            ✗ Disconnected {coex.account!.at.toLocaleString()} ({coex.account!.event}
+            {coex.account!.reason ? `, ${coex.account!.reason === "PRIMARY_INACTIVITY" ? "phone app not opened for ~14 days" : coex.account!.reason}` : ""}). Reconnect through Embedded Signup.
+          </p>
+        ) : (
+          <p className="text-gray-700">
+            {coex.account ? `Last account event: ${coex.account.event} (${coex.account.at.toLocaleString()})` : "No disconnection events received."}
+          </p>
+        )}
+        <p className="text-gray-600">
+          History import:{" "}
+          {coex.historyDeclined
+            ? "declined in the WhatsApp Business app — only new messages sync."
+            : coex.historyEvents === 0
+              ? "not received (optional — new messages work without it)."
+              : `${coex.historyProgress ?? 0}% (${coex.historyEvents} chunks)${coex.historyProgress === 100 ? " — complete" : ""} · ${coex.historicalMessages} messages imported`}
+        </p>
+        <p className="text-gray-600">
+          Phone-app replies synced in the last 7 days: {coex.phoneEchoes}
+          {coex.phoneEchoes === 0 && " — if staff replied from the phone, check the smb_message_echoes webhook subscription."}
+        </p>
+        <p className="text-gray-600">WhatsApp orders (all time): {coex.whatsappOrders}</p>
+        <p className="text-amber-800 bg-amber-50 rounded-md px-3 py-2">
+          Keep the WhatsApp Business app on the main phone in use: Meta disconnects the API side if it isn&apos;t opened for about 14 days, or if
+          the app is reinstalled or moved to another phone. Linked WhatsApp for Windows and WearOS devices don&apos;t sync to this dashboard.
+        </p>
+      </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="p-4 flex flex-wrap items-center justify-between gap-3 border-b">
@@ -163,4 +207,36 @@ function ChannelCard({ title, configured, health, lines }: { title: string; conf
       ))}
     </div>
   );
+}
+
+/** Coexistence health, read from the webhook event log (no extra tables). */
+async function coexistenceStatus(since: Date) {
+  const [account] = await prisma.$queryRaw<{ event: string | null; reason: string | null; at: Date }[]>`
+    SELECT payload #>> '{entry,0,changes,0,value,event}' AS event,
+           payload #>> '{entry,0,changes,0,value,disconnection_info,reason}' AS reason,
+           "receivedAt" AS at
+    FROM "MetaWebhookEvent" WHERE "eventType" LIKE '%account%' ORDER BY "receivedAt" DESC LIMIT 1`;
+  const [history] = await prisma.$queryRaw<{ progress: number | null; events: bigint; declined: boolean }[]>`
+    SELECT max(CASE WHEN p ~ '^[0-9]+$' THEN p::int END) AS progress, count(*) AS events,
+           bool_or(error LIKE '%2593109%') AS declined
+    FROM (SELECT payload #>> '{entry,0,changes,0,value,history,0,metadata,progress}' AS p, error
+          FROM "MetaWebhookEvent" WHERE "eventType" LIKE '%history%' OR error LIKE '%history:%') h`;
+  const [historicalMessages, phoneEchoes, whatsappOrders] = await Promise.all([
+    prisma.message.count({ where: { isHistorical: true } }),
+    prisma.message.count({
+      where: { direction: "OUTBOUND", sentBy: null, isHistorical: false, externalTimestamp: { gte: since }, conversation: { channel: "WHATSAPP" } },
+    }),
+    prisma.order.count({ where: { source: "WHATSAPP" } }),
+  ]);
+  const acc = account?.event ? { event: account.event, reason: account.reason, at: account.at } : null;
+  return {
+    account: acc,
+    disconnected: !!acc && ["ACCOUNT_OFFBOARDED", "PARTNER_REMOVED"].includes(acc.event),
+    historyProgress: history?.progress ?? null,
+    historyEvents: Number(history?.events ?? 0),
+    historyDeclined: !!history?.declined,
+    historicalMessages,
+    phoneEchoes,
+    whatsappOrders,
+  };
 }
