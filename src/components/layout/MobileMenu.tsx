@@ -88,7 +88,7 @@ export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }:
       <Link href="/cart" aria-label="Cart" className="relative p-2 text-gray-700 rounded-md focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2">
         <ShoppingCart size={22} />
         {cartCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-700 px-1 text-[10px] font-semibold text-white">
             {cartCount > 99 ? "99+" : cartCount}
           </span>
         )}
@@ -151,7 +151,7 @@ export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }:
                       <Icon size={20} className={active ? "text-sky-600" : "text-gray-400"} />
                       <span className="flex-1">{label}</span>
                       {typeof badge === "number" && badge > 0 && (
-                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-600 px-1 text-xs font-semibold text-white">
+                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-700 px-1 text-xs font-semibold text-white">
                           {badge > 99 ? "99+" : badge}
                         </span>
                       )}
@@ -171,7 +171,7 @@ export function MobileMenu({ isAuthed, isAdmin, cartCount = 0, whatsappNumber }:
                 {isAdmin && (
                   <Link
                     href="/admin"
-                    className="mt-2 rounded-xl bg-sky-600 px-4 py-3 text-center font-medium text-white transition-colors hover:bg-sky-700"
+                    className="mt-2 rounded-xl bg-sky-700 px-4 py-3 text-center font-medium text-white transition-colors hover:bg-sky-800"
                     onClick={() => setIsOpen(false)}
                   >
                     Dashboard

@@ -49,7 +49,7 @@ export function ProductImageUpload({
               />
               {/* Primary badge */}
               {index === 0 && (
-                <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-sky-600 text-white px-1.5 py-0.5 rounded">
+                <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-sky-700 text-white px-1.5 py-0.5 rounded">
                   Primary
                 </span>
               )}
@@ -91,7 +91,7 @@ export function ProductImageUpload({
           }}
           appearance={{
             button:
-              "bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2 rounded-md",
+              "bg-sky-700 hover:bg-sky-800 text-white text-sm px-4 py-2 rounded-md",
             allowedContent: "text-gray-500 text-xs mt-1",
           }}
         />
