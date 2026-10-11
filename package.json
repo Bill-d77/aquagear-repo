@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
+    "build:cf": "opennextjs-cloudflare build",
+    "preview:cf": "opennextjs-cloudflare build && wrangler dev",
     "prisma:dev": "prisma migrate dev",
     "seed": "node prisma/seed.mjs",
     "postinstall": "prisma generate",
@@ -16,6 +18,8 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.0",
+    "@opennextjs/cloudflare": "^1.20.10",
+    "@prisma/adapter-pg": "^5.15.1",
     "@prisma/client": "5.15.1",
     "@uploadthing/react": "^7.3.3",
     "@vercel/analytics": "^2.0.1",
@@ -24,8 +28,9 @@
     "framer-motion": "^12.23.25",
     "jose": "^6.2.3",
     "lucide-react": "0.469.0",
-    "next": "^16.2.6",
+    "next": "^16.3.8",
     "next-auth": "^5.0.0-beta.31",
+    "pg": "^8.23.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "recharts": "^2.15.0",
@@ -37,13 +42,15 @@
   "devDependencies": {
     "@types/bcryptjs": "2.4.6",
     "@types/node": "20.12.7",
+    "@types/pg": "^8.23.1",
     "@types/react": "18.2.79",
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "10.4.20",
     "postcss": "8.5.14",
     "prisma": "5.15.1",
     "tailwindcss": "3.4.9",
-    "typescript": "5.4.5"
+    "typescript": "5.4.5",
+    "wrangler": "^4.149.0"
   },
   "overrides": {
     "effect": "3.21.2",

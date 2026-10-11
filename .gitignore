@@ -39,3 +39,8 @@ AUDIT_REPORT.md
 # Vercel-linked local env (OIDC token)
 .env.local
 .vercel
+
+# Cloudflare (OpenNext)
+.open-next/
+.wrangler/
+.dev.vars
