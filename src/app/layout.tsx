@@ -103,7 +103,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <Toaster position="bottom-right" richColors />
           </ConsentProvider>
         </Providers>
-        <Analytics />
+        {process.env.VERCEL && <Analytics />}
       </body>
     </html>
   );

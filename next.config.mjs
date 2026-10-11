@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // OpenNext swaps in the Workers (wasm) Prisma engine; it must stay unbundled.
+  serverExternalPackages: ["@prisma/client", ".prisma/client"],
+  // pg loads pg-cloudflare via a "workerd" export that Node tracing skips.
+  outputFileTracingIncludes: { "/*": ["./node_modules/pg-cloudflare/**/*"] },
   async headers() {
     return [
       {

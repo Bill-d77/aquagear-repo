@@ -81,6 +81,17 @@ export function SiteFooter({ whatsappNumber }: SiteFooterProps) {
         {/* Bottom line */}
         <div className="mt-8 flex flex-col items-center gap-3 border-t border-gray-100 pt-6 text-xs text-gray-500 sm:flex-row sm:justify-between">
           <span>© {new Date().getFullYear()} AquaGear. All rights reserved.</span>
+          <span>
+            Developed by{" "}
+            <a
+              href="https://www.codeinnovix.com"
+              target="_blank"
+              rel="noopener"
+              className="font-medium transition-colors hover:text-sky-700"
+            >
+              CodeInnovix
+            </a>
+          </span>
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             className="inline-flex items-center gap-1.5 transition-colors hover:text-sky-700"
