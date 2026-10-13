@@ -13,7 +13,7 @@ export default function TermsPage() {
     <article className="prose mx-auto max-w-3xl">
       <h1 className="text-3xl font-bold tracking-tight">Terms of Use</h1>
       <p className="mt-4 text-gray-600 dark:text-gray-300">
-        These terms apply when you browse aquagear-repo.vercel.app or order from AquaGear on our
+        These terms apply when you browse www.aquagearlb.com or order from AquaGear on our
         website, Instagram, or WhatsApp. By placing an order you agree to them. How we handle your
         personal data is covered in our{" "}
         <Link href="/privacy-policy" className="text-sky-700 underline dark:text-sky-400">
